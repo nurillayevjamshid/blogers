@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { Blogger, BrandType, CollaborationType } from '../types';
 import { BrandLogo, MioMainBrand } from './BrandLogo';
+import { MobileBloggerCard } from './MobileBloggerCard';
 
 interface BloggerTableViewProps {
   bloggers: Blogger[];
@@ -179,14 +180,14 @@ export const BloggerTableView: React.FC<BloggerTableViewProps> = ({
   const totalCount = bloggers.length;
 
   return (
-    <div className="min-h-screen w-full bg-gradient-to-br from-[#6878ea] via-[#7888f3] to-[#8f9efc] text-slate-800 p-2 sm:p-5 lg:p-8 flex flex-col justify-between selection:bg-[#F0826D]/30">
+    <div className="min-h-screen w-full overflow-x-hidden bg-gradient-to-br from-[#6878ea] via-[#7888f3] to-[#8f9efc] text-slate-800 p-2 sm:p-5 lg:p-8 flex flex-col justify-between selection:bg-[#F0826D]/30">
       
       {/* 1. TOP BRAND HEADER: MIO Rasmiy Logosi */}
-      <header className="w-full max-w-7xl mx-auto flex items-center justify-between py-2 px-3 mb-3 text-white">
+      <header className="w-full max-w-7xl mx-auto flex min-w-0 items-center justify-between gap-2 py-2 px-2 sm:px-3 mb-3 text-white">
         <MioMainBrand />
 
         {/* Current Date & Switch brand button & Sozlamalar */}
-        <div className="flex items-center gap-2 sm:gap-3">
+        <div className="flex shrink-0 items-center gap-1.5 sm:gap-3">
           <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-xs text-xs font-semibold border border-white/20">
             <Calendar className="w-3.5 h-3.5 text-white/80" />
             <span>Seshanba, 22-Sentabr, 2026</span>
@@ -195,7 +196,7 @@ export const BloggerTableView: React.FC<BloggerTableViewProps> = ({
           <button
             type="button"
             onClick={onBackToBrandSelect}
-            className="flex items-center gap-2 px-3.5 py-2 rounded-full bg-white/15 hover:bg-white/25 text-white text-xs font-bold transition-all cursor-pointer backdrop-blur-xs border border-white/20"
+            className="flex min-h-11 min-w-11 items-center justify-center gap-2 px-3.5 py-2 rounded-full bg-white/15 hover:bg-white/25 text-white text-xs font-bold transition-all cursor-pointer backdrop-blur-xs border border-white/20 sm:min-h-0 sm:min-w-0"
             title="Brendni o‘zgartirish"
           >
             <RotateCcw className="w-3.5 h-3.5" />
@@ -206,7 +207,7 @@ export const BloggerTableView: React.FC<BloggerTableViewProps> = ({
             <button
               type="button"
               onClick={onOpenSettings}
-              className="flex items-center gap-2 px-3.5 py-2 rounded-full bg-white/15 hover:bg-white/25 text-white text-xs font-bold transition-all cursor-pointer backdrop-blur-xs border border-white/20"
+              className="flex min-h-11 min-w-11 items-center justify-center gap-2 px-3.5 py-2 rounded-full bg-white/15 hover:bg-white/25 text-white text-xs font-bold transition-all cursor-pointer backdrop-blur-xs border border-white/20 sm:min-h-0 sm:min-w-0"
               title="Tizim sozlamalari"
             >
               <Settings className="w-3.5 h-3.5" />
@@ -217,25 +218,25 @@ export const BloggerTableView: React.FC<BloggerTableViewProps> = ({
       </header>
 
       {/* 2. MAIN FLOATING SAAS CONTAINER */}
-      <div className="w-full max-w-7xl mx-auto bg-[#F4F6F9] rounded-[32px] sm:rounded-[40px] shadow-2xl p-4 sm:p-6 lg:p-8 border border-white/70 relative">
+      <div className="w-full max-w-7xl mx-auto bg-[#F4F6F9] rounded-[24px] sm:rounded-[40px] shadow-2xl p-3 sm:p-6 lg:p-8 border border-white/70 relative">
         <div className="w-full min-w-0">
           
           {/* TOP CONTROLS ROW */}
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4 mb-5 sm:mb-6">
             
             {/* Top Navigation Tabs: Faqat Barchasi (ishlanganlar) va Ishlanayotganlar */}
-            <div className="flex items-center gap-1.5 p-1 bg-white/90 rounded-full border border-slate-200/80 shadow-xs text-xs font-bold text-slate-600 overflow-x-auto">
+            <div className="grid w-full grid-cols-2 items-center gap-1 p-1 bg-white/90 rounded-full border border-slate-200/80 shadow-xs text-[11px] sm:text-xs font-bold text-slate-600 md:flex md:w-auto md:gap-1.5">
               {/* Barchasi (Hamma ishlangan blogerlar) */}
               <button
                 type="button"
                 onClick={() => setActiveTab('all')}
-                className={`flex items-center gap-2 px-4 py-2 rounded-full transition-all cursor-pointer whitespace-nowrap ${
+                className={`flex w-full min-w-0 items-center justify-center gap-1.5 px-2 py-2.5 sm:px-4 sm:py-2 rounded-full transition-all cursor-pointer whitespace-nowrap md:w-auto md:flex-none md:gap-2 md:px-4 ${
                   activeTab === 'all'
                     ? 'bg-slate-900 text-white shadow-xs'
                     : 'hover:text-slate-900 hover:bg-slate-100'
                 }`}
               >
-                <Sparkles className="w-3.5 h-3.5 text-[#F0826D]" />
+                <Sparkles className="hidden h-3.5 w-3.5 shrink-0 text-[#F0826D] sm:block" />
                 <span>Barchasi</span>
                 <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
                   activeTab === 'all' ? 'bg-[#F0826D] text-white' : 'bg-slate-200 text-slate-700'
@@ -248,13 +249,13 @@ export const BloggerTableView: React.FC<BloggerTableViewProps> = ({
               <button
                 type="button"
                 onClick={() => setActiveTab('pending')}
-                className={`flex items-center gap-2 px-4 py-2 rounded-full transition-all cursor-pointer whitespace-nowrap ${
+                className={`flex w-full min-w-0 items-center justify-center gap-1.5 px-2 py-2.5 sm:px-4 sm:py-2 rounded-full transition-all cursor-pointer whitespace-nowrap md:w-auto md:flex-none md:gap-2 md:px-4 ${
                   activeTab === 'pending'
                     ? 'bg-slate-900 text-white shadow-xs'
                     : 'hover:text-slate-900 hover:bg-slate-100'
                 }`}
               >
-                <Clock className="w-3.5 h-3.5 text-amber-500" />
+                <Clock className="hidden h-3.5 w-3.5 shrink-0 text-amber-500 sm:block" />
                 <span>Ishlanayotganlar</span>
                 <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
                   activeTab === 'pending' ? 'bg-amber-500 text-white' : 'bg-amber-100 text-amber-800'
@@ -265,10 +266,10 @@ export const BloggerTableView: React.FC<BloggerTableViewProps> = ({
             </div>
 
             {/* Action Tools: Live Search, 5-Day Alert Bell, Add Blogger */}
-            <div className="flex items-center gap-2.5">
+            <div className="flex w-full flex-wrap items-center gap-2.5 sm:flex-nowrap md:w-auto">
               
               {/* REAL-TIME SEARCH BAR */}
-              <div className="relative flex-1 sm:w-64">
+              <div className="relative order-first w-full flex-none sm:order-none sm:flex-1 sm:w-64 md:w-64">
                 <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <input
                   ref={searchInputRef}
@@ -276,7 +277,7 @@ export const BloggerTableView: React.FC<BloggerTableViewProps> = ({
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Bloger, mahsulot, menejer..."
-                  className="w-full pl-9 pr-8 py-2 bg-white border border-slate-200/90 rounded-full text-xs font-semibold text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#F0826D]/30 focus:border-[#F0826D] shadow-xs transition-all"
+                  className="min-h-11 w-full pl-10 pr-9 py-2.5 bg-white border border-slate-200/90 rounded-full text-xs font-semibold text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#F0826D]/30 focus:border-[#F0826D] shadow-xs transition-all"
                 />
                 {searchQuery && (
                   <button
@@ -295,7 +296,7 @@ export const BloggerTableView: React.FC<BloggerTableViewProps> = ({
                 <button
                   type="button"
                   onClick={() => setIsNotificationOpen(!isNotificationOpen)}
-                  className={`relative w-10 h-10 rounded-full flex items-center justify-center transition-all cursor-pointer shadow-xs ${
+                  className={`relative h-11 w-11 sm:h-10 sm:w-10 rounded-full flex items-center justify-center transition-all cursor-pointer shadow-xs ${
                     overdueBloggers.length > 0
                       ? 'bg-rose-50 border border-rose-200 text-rose-600 hover:bg-rose-100 animate-pulse'
                       : 'bg-white border border-slate-200/80 text-slate-600 hover:text-slate-900'
@@ -387,7 +388,7 @@ export const BloggerTableView: React.FC<BloggerTableViewProps> = ({
               <button
                 type="button"
                 onClick={onOpenAddModal}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold shadow-sm cursor-pointer transition-transform hover:scale-102 active:scale-98 shrink-0"
+                className="flex min-h-11 flex-1 items-center justify-center gap-2 px-4 py-2.5 rounded-full bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold shadow-sm cursor-pointer transition-transform hover:scale-102 active:scale-98 shrink-0 sm:flex-none sm:px-5"
               >
                 <Plus className="w-4 h-4 text-[#F0826D]" />
                 <span>Bloger qo‘shish</span>
@@ -418,7 +419,7 @@ export const BloggerTableView: React.FC<BloggerTableViewProps> = ({
                 <button
                   type="button"
                   onClick={() => setIsFilterMenuOpen(!isFilterMenuOpen)}
-                  className={`flex items-center gap-1.5 px-3.5 py-2 rounded-full border text-xs font-bold shadow-xs transition-colors cursor-pointer ${
+                  className={`flex min-h-11 items-center gap-1.5 px-3.5 py-2 rounded-full border text-xs font-bold shadow-xs transition-colors cursor-pointer sm:min-h-0 ${
                     brandFilter !== 'all'
                       ? 'bg-[#F0826D] text-white border-[#F0826D]'
                       : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
@@ -479,17 +480,17 @@ export const BloggerTableView: React.FC<BloggerTableViewProps> = ({
             
             {/* Table Header Controls */}
             <div className="p-4 sm:p-5 flex flex-wrap items-center justify-between gap-3 border-b border-slate-100">
-              <div className="flex items-center gap-3">
+              <div className="flex w-full flex-col items-stretch gap-2 sm:w-auto sm:flex-row sm:items-center sm:gap-3">
                 <h3 className="font-bold text-slate-900 text-sm sm:text-base">
                   Blogerlar Ro‘yxati
                 </h3>
 
                 {/* Time filter pills */}
-                <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-full text-xs font-bold text-slate-600">
+                <div className="flex w-full items-center gap-1 bg-slate-100 p-1 rounded-full text-xs font-bold text-slate-600 sm:w-auto">
                   <button
                     type="button"
                     onClick={() => setTimeFilter('today')}
-                    className={`px-3 py-1 rounded-full transition-all cursor-pointer ${
+                    className={`min-h-11 flex-1 px-2 py-1 rounded-full transition-all cursor-pointer sm:min-h-0 sm:flex-none sm:px-3 ${
                       timeFilter === 'today'
                         ? 'bg-white text-slate-900 shadow-xs'
                         : 'hover:text-slate-900'
@@ -500,7 +501,7 @@ export const BloggerTableView: React.FC<BloggerTableViewProps> = ({
                   <button
                     type="button"
                     onClick={() => setTimeFilter('week')}
-                    className={`px-3 py-1 rounded-full transition-all cursor-pointer ${
+                    className={`min-h-11 flex-1 px-2 py-1 rounded-full transition-all cursor-pointer sm:min-h-0 sm:flex-none sm:px-3 ${
                       timeFilter === 'week'
                         ? 'bg-white text-slate-900 shadow-xs'
                         : 'hover:text-slate-900'
@@ -511,7 +512,7 @@ export const BloggerTableView: React.FC<BloggerTableViewProps> = ({
                   <button
                     type="button"
                     onClick={() => setTimeFilter('all')}
-                    className={`px-3 py-1 rounded-full transition-all cursor-pointer ${
+                    className={`min-h-11 flex-1 px-2 py-1 rounded-full transition-all cursor-pointer sm:min-h-0 sm:flex-none sm:px-3 ${
                       timeFilter === 'all'
                         ? 'bg-white text-slate-900 shadow-xs'
                         : 'hover:text-slate-900'
@@ -531,7 +532,7 @@ export const BloggerTableView: React.FC<BloggerTableViewProps> = ({
                     setBrandFilter('all');
                     setTimeFilter('all');
                   }}
-                  className="w-8 h-8 rounded-full border border-slate-200 text-slate-400 hover:text-slate-700 hover:bg-slate-50 flex items-center justify-center transition-colors cursor-pointer"
+                  className="h-11 w-11 rounded-full border border-slate-200 text-slate-400 hover:text-slate-700 hover:bg-slate-50 flex items-center justify-center transition-colors cursor-pointer sm:h-8 sm:w-8"
                   title="Filtrlarni tozalash"
                 >
                   <ArrowUpRight className="w-4 h-4" />
@@ -540,7 +541,7 @@ export const BloggerTableView: React.FC<BloggerTableViewProps> = ({
             </div>
 
             {/* Table Container */}
-            <div className="overflow-x-auto">
+            <div className="hidden overflow-x-auto md:block">
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
                   <tr className="border-b border-slate-100 bg-slate-50/50 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
@@ -715,13 +716,36 @@ export const BloggerTableView: React.FC<BloggerTableViewProps> = ({
               </table>
             </div>
 
+            {/* Mobile cards: intentionally separate from the desktop table so the desktop layout stays unchanged. */}
+            <div className="space-y-3 p-3 md:hidden">
+              {filteredBloggers.length === 0 ? (
+                <div className="flex min-h-48 flex-col items-center justify-center px-4 text-center text-slate-400">
+                  <Layers className="mb-2 h-9 w-9 text-slate-300" />
+                  <p className="text-sm font-bold text-slate-600">Mos keladigan blogerlar topilmadi</p>
+                  <p className="mt-1 max-w-xs text-xs leading-5">Qidiruv yoki filtr parametrlarini o‘zgartiring.</p>
+                </div>
+              ) : (
+                filteredBloggers.map((blogger, index) => (
+                  <MobileBloggerCard
+                    key={blogger.id}
+                    blogger={blogger}
+                    index={index}
+                    isPendingView={activeTab === 'pending'}
+                    onOpenHistory={setHistoryBlogger}
+                    onComplete={onCompleteBlogger}
+                    onDelete={onDeleteBlogger}
+                  />
+                ))
+              )}
+            </div>
+
             {/* Table Footer */}
-            <div className="p-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-2 bg-slate-50/30">
+            <div className="p-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-2 bg-slate-50/30 text-center sm:text-left">
               <div>
                 Jami: <strong>{filteredBloggers.length} ta bloger</strong> {activeTab === 'all' ? 'ro‘yxatda' : 'ishlanmoqda'} (umumiy {totalCount} tadan)
               </div>
 
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center justify-center gap-3">
                 <span className="flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-[#F0826D]"></span>
                   Barchasi: {allBloggersCount}
@@ -890,7 +914,7 @@ export const BloggerTableView: React.FC<BloggerTableViewProps> = ({
 
       {/* 3. BOTTOM MIO FOOTER */}
       <footer className="w-full max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between py-3 px-3 mt-4 text-white/90 text-xs font-medium gap-2">
-        <div className="flex items-center gap-2">
+        <div className="flex max-w-[280px] items-start gap-2 text-center leading-5 sm:max-w-none sm:items-center sm:text-left">
           <ShieldCheck className="w-4 h-4 text-white" />
           <span>MIO Beauty & MIO Home | Rasmiy Hamkorlik Monitoring Tizimi</span>
         </div>
