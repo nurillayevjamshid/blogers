@@ -1,0 +1,6 @@
+{
+  "name": "Blogerlar Boshqaruvi",
+  "description": "MIO Beauty va MIO Home brendlari uchun blogerlar bilan hamkorlikni tracking qilish va boshqarish platformasi",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
