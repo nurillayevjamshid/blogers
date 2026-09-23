@@ -1,8 +1,10 @@
+import 'dotenv/config';
 import express from 'express';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { createServer as createViteServer } from 'vite';
+import { createClient } from '@supabase/supabase-js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -284,7 +286,7 @@ const initialDemoBloggers: BloggerRecord[] = [
   },
 ];
 
-function readBloggers(): BloggerRecord[] {
+function readBloggersFile(): BloggerRecord[] {
   try {
     if (!fs.existsSync(DATA_DIR)) {
       fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -365,7 +367,7 @@ function readBloggers(): BloggerRecord[] {
   }
 }
 
-function writeBloggers(bloggers: BloggerRecord[]): void {
+function writeBloggersFile(bloggers: BloggerRecord[]): void {
   try {
     if (!fs.existsSync(DATA_DIR)) {
       fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -376,187 +378,238 @@ function writeBloggers(bloggers: BloggerRecord[]): void {
   }
 }
 
+const SUPABASE_URL = process.env.SUPABASE_URL || 'https://pkqaxnerwmuceuzusmwv.supabase.co';
+const SUPABASE_KEY = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_PUBLISHABLE_KEY;
+const supabase = SUPABASE_KEY
+  ? createClient(SUPABASE_URL, SUPABASE_KEY)
+  : null;
+
+function rowToBlogger(row: any): BloggerRecord {
+  return {
+    id: row.id,
+    nickname: row.nickname,
+    date: row.date,
+    collaborationType: row.collaboration_type,
+    brand: row.brand,
+    status: row.status,
+    category: row.category || undefined,
+    manager: row.manager || undefined,
+    time: row.time || undefined,
+    audience: row.audience || undefined,
+    notes: row.notes || undefined,
+    completedAt: row.completed_at || null,
+    isBlacklisted: row.is_blacklisted || false,
+    blacklistReason: row.blacklist_reason || undefined,
+    history: Array.isArray(row.history) ? row.history : [],
+    createdAt: row.created_at || new Date().toISOString(),
+  };
+}
+
+function bloggerToRow(blogger: BloggerRecord) {
+  return {
+    id: blogger.id,
+    nickname: blogger.nickname,
+    date: blogger.date,
+    collaboration_type: blogger.collaborationType,
+    brand: blogger.brand,
+    status: blogger.status,
+    category: blogger.category || null,
+    manager: blogger.manager || null,
+    time: blogger.time || null,
+    audience: blogger.audience || null,
+    notes: blogger.notes || null,
+    completed_at: blogger.completedAt || null,
+    is_blacklisted: blogger.isBlacklisted || false,
+    blacklist_reason: blogger.blacklistReason || null,
+    history: blogger.history || [],
+    created_at: blogger.createdAt || new Date().toISOString(),
+  };
+}
+
+async function readBloggers(): Promise<BloggerRecord[]> {
+  if (!supabase) return readBloggersFile();
+  const { data, error } = await supabase.from('bloggers').select('*').order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data || []).map(rowToBlogger);
+}
+
+async function writeBloggers(bloggers: BloggerRecord[]): Promise<void> {
+  if (!supabase) {
+    writeBloggersFile(bloggers);
+    return;
+  }
+  const { error } = await supabase.from('bloggers').upsert(bloggers.map(bloggerToRow), { onConflict: 'id' });
+  if (error) throw error;
+}
+
 function normalizeNickname(nick: string): string {
   const clean = nick.trim().replace(/^@+/, '');
   return `@${clean}`;
 }
 
 // REST API Endpoints
-app.get('/api/bloggers', (_req, res) => {
-  const bloggers = readBloggers();
-  res.json({ success: true, data: bloggers });
+app.get('/api/bloggers', async (_req, res) => {
+  try {
+    const bloggers = await readBloggers();
+    res.json({ success: true, data: bloggers });
+  } catch (error) {
+    console.error('Error fetching bloggers:', error);
+    res.status(500).json({ success: false, error: 'Ma’lumotlarni yuklashda xatolik yuz berdi.' });
+  }
 });
 
-app.post('/api/bloggers', (req, res) => {
-  const { nickname, date, collaborationType, brand, category, manager, time, audience, notes } = req.body;
+app.post('/api/bloggers', async (req, res) => {
+  try {
+    const { nickname, date, collaborationType, brand, category, manager, time, audience, notes } = req.body;
 
-  if (!nickname || typeof nickname !== 'string' || !nickname.trim()) {
-    res.status(400).json({ success: false, error: "Bloger nickname'ini kiriting." });
-    return;
-  }
-
-  if (!date) {
-    res.status(400).json({ success: false, error: 'Sanani tanlang.' });
-    return;
-  }
-
-  const validTypes = ['barter', 'paid'];
-  const validBrands = ['mio_beauty', 'mio_home'];
-
-  const type = validTypes.includes(collaborationType) ? collaborationType : 'barter';
-  const br = validBrands.includes(brand) ? brand : 'mio_beauty';
-
-  const normalized = normalizeNickname(nickname);
-  const cleanKey = normalized.replace(/^@/, '').toLowerCase();
-
-  const bloggers = readBloggers();
-
-  // Find existing blogger by nickname (case-insensitive)
-  const existingIndex = bloggers.findIndex(
-    (b) => b.nickname.replace(/^@/, '').toLowerCase() === cleanKey
-  );
-
-  const newCollabItem: CollaborationHistoryItem = {
-    id: `collab_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-    date,
-    collaborationType: type,
-    brand: br,
-    status: 'pending',
-    category: category || undefined,
-    manager: manager?.trim() || undefined,
-    time: time || '14:30 (Story seriya)',
-    notes: notes || undefined,
-    createdAt: new Date().toISOString(),
-    completedAt: null,
-  };
-
-  if (existingIndex !== -1) {
-    // REPEAT COLLABORATION: Update existing blogger and append to history
-    const existing = bloggers[existingIndex];
-
-    if (existing.isBlacklisted) {
-      res.status(400).json({
-        success: false,
-        error: 'Ushbu bloger qora ro‘yxatda. Hamkorlik kiritib bo‘lmaydi.',
-      });
+    if (!nickname || typeof nickname !== 'string' || !nickname.trim()) {
+      res.status(400).json({ success: false, error: "Bloger nickname'ini kiriting." });
+      return;
+    }
+    if (!date) {
+      res.status(400).json({ success: false, error: 'Sanani tanlang.' });
       return;
     }
 
-    if (!Array.isArray(existing.history)) {
-      existing.history = [];
+    const type = ['barter', 'paid'].includes(collaborationType) ? collaborationType : 'barter';
+    const br = ['mio_beauty', 'mio_home'].includes(brand) ? brand : 'mio_beauty';
+    const normalized = normalizeNickname(nickname);
+    const cleanKey = normalized.replace(/^@/, '').toLowerCase();
+    const bloggers = await readBloggers();
+    const existingIndex = bloggers.findIndex((b) => b.nickname.replace(/^@/, '').toLowerCase() === cleanKey);
+
+    const newCollabItem: CollaborationHistoryItem = {
+      id: `collab_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      date,
+      collaborationType: type,
+      brand: br,
+      status: 'pending',
+      category: category || undefined,
+      manager: manager?.trim() || undefined,
+      time: time || '14:30 (Story seriya)',
+      notes: notes || undefined,
+      createdAt: new Date().toISOString(),
+      completedAt: null,
+    };
+
+    if (existingIndex !== -1) {
+      const existing = bloggers[existingIndex];
+      if (existing.isBlacklisted) {
+        res.status(400).json({ success: false, error: 'Ushbu bloger qora ro‘yxatda. Hamkorlik kiritib bo‘lmaydi.' });
+        return;
+      }
+      if (!Array.isArray(existing.history)) existing.history = [];
+      existing.history.unshift(newCollabItem);
+      existing.date = date;
+      existing.collaborationType = type;
+      existing.brand = br;
+      existing.status = 'pending';
+      existing.completedAt = null;
+      if (category !== undefined) existing.category = category || undefined;
+      if (manager !== undefined) existing.manager = manager.trim() || undefined;
+      if (notes !== undefined) existing.notes = notes || undefined;
+      if (audience) existing.audience = audience;
+      await writeBloggers(bloggers);
+      res.status(200).json({ success: true, data: existing, isRepeat: true });
+      return;
     }
 
-    // Add new collaboration to top of history
-    existing.history.unshift(newCollabItem);
-
-    // Update blogger's latest visible fields
-    existing.date = date;
-    existing.collaborationType = type;
-    existing.brand = br;
-    existing.status = 'pending'; // Active task in "Ishlanayotganlar"
-    existing.completedAt = null;
-    if (category !== undefined) existing.category = category || undefined;
-    if (manager !== undefined) existing.manager = manager.trim() || undefined;
-    if (notes !== undefined) existing.notes = notes || undefined;
-    if (audience) existing.audience = audience;
-
-    writeBloggers(bloggers);
-    res.status(200).json({ success: true, data: existing, isRepeat: true });
-    return;
+    const newBlogger: BloggerRecord = {
+      id: `b_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      nickname: normalized,
+      date,
+      collaborationType: type,
+      brand: br,
+      status: 'pending',
+      category: category || undefined,
+      manager: manager?.trim() || undefined,
+      time: time || '14:30 (Story seriya)',
+      audience: audience || '250k obunachi',
+      notes: notes || undefined,
+      createdAt: new Date().toISOString(),
+      completedAt: null,
+      history: [newCollabItem],
+    };
+    bloggers.unshift(newBlogger);
+    await writeBloggers(bloggers);
+    res.status(201).json({ success: true, data: newBlogger, isRepeat: false });
+  } catch (error) {
+    console.error('Error creating blogger:', error);
+    res.status(500).json({ success: false, error: 'Blogerni saqlashda xatolik yuz berdi.' });
   }
-
-  // NEW BLOGGER: Create new blogger with single history entry
-  const newBlogger: BloggerRecord = {
-    id: `b_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-    nickname: normalized,
-    date,
-    collaborationType: type,
-    brand: br,
-    status: 'pending', // active in Ishlanayotganlar, listed in Barchasi
-    category: category || undefined,
-    manager: manager?.trim() || undefined,
-    time: time || '14:30 (Story seriya)',
-    audience: audience || '250k obunachi',
-    notes: notes || undefined,
-    createdAt: new Date().toISOString(),
-    completedAt: null,
-    history: [newCollabItem],
-  };
-
-  bloggers.unshift(newBlogger);
-  writeBloggers(bloggers);
-
-  res.status(201).json({ success: true, data: newBlogger, isRepeat: false });
 });
 
-app.patch('/api/bloggers/:id/complete', (req, res) => {
-  const { id } = req.params;
-  const bloggers = readBloggers();
-  const index = bloggers.findIndex((b) => b.id === id);
-
-  if (index === -1) {
-    res.status(404).json({ success: false, error: 'Bloger topilmadi.' });
-    return;
-  }
-
-  const now = new Date().toISOString();
-  bloggers[index].status = 'completed';
-  bloggers[index].completedAt = now;
-
-  // Mark all pending history items as completed
-  if (Array.isArray(bloggers[index].history)) {
-    bloggers[index].history.forEach((h) => {
+app.patch('/api/bloggers/:id/complete', async (req, res) => {
+  try {
+    const bloggers = await readBloggers();
+    const index = bloggers.findIndex((b) => b.id === req.params.id);
+    if (index === -1) {
+      res.status(404).json({ success: false, error: 'Bloger topilmadi.' });
+      return;
+    }
+    const now = new Date().toISOString();
+    bloggers[index].status = 'completed';
+    bloggers[index].completedAt = now;
+    bloggers[index].history?.forEach((h) => {
       if (h.status === 'pending') {
         h.status = 'completed';
         h.completedAt = now;
       }
     });
+    await writeBloggers(bloggers);
+    res.json({ success: true, data: bloggers[index] });
+  } catch (error) {
+    console.error('Error completing blogger:', error);
+    res.status(500).json({ success: false, error: 'Blogerni yangilashda xatolik yuz berdi.' });
   }
-
-  writeBloggers(bloggers);
-  res.json({ success: true, data: bloggers[index] });
 });
 
-app.patch('/api/bloggers/:id/reopen', (req, res) => {
-  const { id } = req.params;
-  const bloggers = readBloggers();
-  const index = bloggers.findIndex((b) => b.id === id);
-
-  if (index === -1) {
-    res.status(404).json({ success: false, error: 'Bloger topilmadi.' });
-    return;
+app.patch('/api/bloggers/:id/reopen', async (req, res) => {
+  try {
+    const bloggers = await readBloggers();
+    const index = bloggers.findIndex((b) => b.id === req.params.id);
+    if (index === -1) {
+      res.status(404).json({ success: false, error: 'Bloger topilmadi.' });
+      return;
+    }
+    bloggers[index].status = 'pending';
+    bloggers[index].completedAt = null;
+    if (bloggers[index].history?.length) {
+      bloggers[index].history[0].status = 'pending';
+      bloggers[index].history[0].completedAt = null;
+    }
+    await writeBloggers(bloggers);
+    res.json({ success: true, data: bloggers[index] });
+  } catch (error) {
+    console.error('Error reopening blogger:', error);
+    res.status(500).json({ success: false, error: 'Blogerni qayta ochishda xatolik yuz berdi.' });
   }
-
-  bloggers[index].status = 'pending';
-  bloggers[index].completedAt = null;
-
-  if (Array.isArray(bloggers[index].history) && bloggers[index].history.length > 0) {
-    bloggers[index].history[0].status = 'pending';
-    bloggers[index].history[0].completedAt = null;
-  }
-
-  writeBloggers(bloggers);
-  res.json({ success: true, data: bloggers[index] });
 });
 
-app.delete('/api/bloggers/:id', (req, res) => {
-  const { id } = req.params;
-  let bloggers = readBloggers();
-  const initialLength = bloggers.length;
-  bloggers = bloggers.filter((b) => b.id !== id);
-
-  if (bloggers.length === initialLength) {
-    res.status(404).json({ success: false, error: 'Bloger topilmadi.' });
-    return;
+app.delete('/api/bloggers/:id', async (req, res) => {
+  try {
+    const bloggers = await readBloggers();
+    const filtered = bloggers.filter((b) => b.id !== req.params.id);
+    if (filtered.length === bloggers.length) {
+      res.status(404).json({ success: false, error: 'Bloger topilmadi.' });
+      return;
+    }
+    await writeBloggers(filtered);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting blogger:', error);
+    res.status(500).json({ success: false, error: 'Blogerni o‘chirishda xatolik yuz berdi.' });
   }
-
-  writeBloggers(bloggers);
-  res.json({ success: true });
 });
 
-app.post('/api/reset-demo', (_req, res) => {
-  writeBloggers(initialDemoBloggers);
-  res.json({ success: true, data: initialDemoBloggers });
+app.post('/api/reset-demo', async (_req, res) => {
+  try {
+    await writeBloggers(initialDemoBloggers);
+    res.json({ success: true, data: initialDemoBloggers });
+  } catch (error) {
+    console.error('Error resetting demo:', error);
+    res.status(500).json({ success: false, error: 'Demo ma’lumotlarini tiklashda xatolik yuz berdi.' });
+  }
 });
 
 // Vite / Static setup
