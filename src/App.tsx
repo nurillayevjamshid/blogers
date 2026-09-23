@@ -34,20 +34,16 @@ import {
 
 export default function App() {
   // Step / View state
-  const [currentStep, setCurrentStep] = useState<StepView>(() => {
-    const savedType = localStorage.getItem('mio_collab_type');
-    const savedBrand = localStorage.getItem('mio_brand');
-    if (savedType && savedBrand) return 'dashboard';
-    if (savedType) return 'brand_select';
-    return 'collaboration_select';
-  });
+  // Open the monitoring dashboard immediately; users can still change the
+  // collaboration context from the dashboard header when needed.
+  const [currentStep, setCurrentStep] = useState<StepView>('dashboard');
 
   const [collaborationType, setCollaborationType] = useState<CollaborationType | null>(() => {
-    return (localStorage.getItem('mio_collab_type') as CollaborationType) || null;
+    return (localStorage.getItem('mio_collab_type') as CollaborationType) || 'barter';
   });
 
   const [brand, setBrand] = useState<BrandType | null>(() => {
-    return (localStorage.getItem('mio_brand') as BrandType) || null;
+    return (localStorage.getItem('mio_brand') as BrandType) || 'mio_beauty';
   });
 
   // Dashboard Tab state: 'pending' or 'completed'
