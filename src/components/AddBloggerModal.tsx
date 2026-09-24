@@ -94,6 +94,20 @@ export const AddBloggerModal: React.FC<AddBloggerModalProps> = ({
     }
   }, [isOpen, defaultType, defaultBrand]);
 
+  useEffect(() => {
+    if (!isOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const focusInput = window.setTimeout(() => {
+      const input = document.querySelector<HTMLInputElement>('[data-mio-add-blogger-input]');
+      input?.focus({ preventScroll: true });
+    }, 180);
+    return () => {
+      window.clearTimeout(focusInput);
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isOpen]);
+
   const handleAddManager = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     const trimmed = newManagerName.trim();
@@ -163,7 +177,7 @@ export const AddBloggerModal: React.FC<AddBloggerModalProps> = ({
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="mio-modal-shell fixed inset-0 z-50 flex items-center justify-center p-4">
           {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
@@ -179,7 +193,7 @@ export const AddBloggerModal: React.FC<AddBloggerModalProps> = ({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 16 }}
             transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-            className="relative w-full max-w-xl bg-white rounded-3xl p-6 sm:p-8 z-10 shadow-2xl max-h-[92vh] overflow-y-auto"
+            className="mio-modal-panel relative w-full max-w-xl bg-white rounded-3xl p-5 sm:p-8 z-10 shadow-2xl max-h-[92vh] overflow-y-auto"
           >
             {/* Modal Header */}
             <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-6">
@@ -231,6 +245,7 @@ export const AddBloggerModal: React.FC<AddBloggerModalProps> = ({
                         if (error) setError(null);
                       }}
                       placeholder="madina_beauty"
+                      data-mio-add-blogger-input
                       className={`w-full pl-9 pr-3 py-2.5 bg-slate-50 border rounded-2xl text-slate-900 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-[#F0826D]/30 transition-all ${
                         existingMatch
                           ? 'border-indigo-300 bg-indigo-50/30'

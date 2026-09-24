@@ -77,3 +77,120 @@ button {
   border: 1px solid rgba(255, 255, 255, 0.95);
   box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.18);
 }
+
+/* Mobile interaction and viewport stability */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+button,
+[role='button'],
+a {
+  min-height: 44px;
+}
+
+@media (max-width: 767px) {
+  html,
+  body,
+  #root {
+    min-height: 100%;
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  input,
+  select,
+  textarea {
+    /* Prevent iOS Safari from applying its own focus zoom. */
+    font-size: 16px !important;
+    line-height: 1.35;
+    scroll-margin-block: 7rem;
+  }
+
+  /* Existing Tailwind utility markup hooks. */
+  [class~='fixed'][class~='bottom-0'] {
+    padding-bottom: max(.5rem, env(safe-area-inset-bottom));
+  }
+
+  [class~='fixed'][class~='bottom-20'] {
+    bottom: calc(4.75rem + env(safe-area-inset-bottom));
+  }
+
+  [class~='overflow-x-auto'][class~='pb-4'] {
+    touch-action: pan-x;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  [class~='fixed'][class~='inset-0'] aside {
+    height: 100dvh;
+    max-height: 100dvh;
+    padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
+    -webkit-overflow-scrolling: touch;
+  }
+
+  [class~='fixed'][class~='inset-0'][class~='z-50'] > [class~='w-full'],
+  [class~='fixed'][class~='inset-0'][class~='z-[60]'] > [class~='w-full'] {
+    max-height: 92dvh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .mio-modal-shell {
+    align-items: flex-start;
+    overflow-y: auto;
+    padding: max(1rem, env(safe-area-inset-top)) 1rem max(1rem, env(safe-area-inset-bottom));
+    overscroll-behavior: contain;
+  }
+
+  .mio-modal-panel {
+    width: min(100%, 38rem);
+    max-height: 92dvh;
+    margin-block: auto;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .mio-drawer-panel {
+    height: 100dvh;
+    max-height: 100dvh;
+    padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .mio-kanban-scroll {
+    touch-action: pan-x;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .mio-mobile-nav {
+    padding-bottom: max(.5rem, env(safe-area-inset-bottom));
+  }
+
+  .mio-mobile-fab {
+    bottom: calc(4.75rem + env(safe-area-inset-bottom));
+  }
+}
+
+@media (min-width: 768px) {
+  .mio-modal-panel {
+    max-height: 92dvh;
+    overflow-y: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: .01ms !important;
+    transition-duration: .01ms !important;
+  }
+}

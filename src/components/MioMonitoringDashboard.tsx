@@ -66,6 +66,12 @@ export const MioMonitoringDashboard: React.FC<Props> = ({ bloggers, onOpenAddMod
     const key = (e: KeyboardEvent) => { if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); document.getElementById('blogger-search')?.focus(); } if (e.key === 'Escape') { setSelected(null); setResultFor(null); setSettingsOpen(false); } };
     window.addEventListener('keydown', key); return () => window.removeEventListener('keydown', key);
   }, []);
+  useEffect(() => {
+    const modalOpen = Boolean(selected || resultFor || settingsOpen);
+    const previousOverflow = document.body.style.overflow;
+    if (modalOpen) document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = previousOverflow; };
+  }, [selected, resultFor, settingsOpen]);
   useEffect(() => { if (toast) { const t = setTimeout(() => setToast(''), 2600); return () => clearTimeout(t); } }, [toast]);
 
   const move = (id: string, stage: Stage) => { setToast(`Hamkorlik “${stages.find(s => s.id === stage)?.label}” bosqichiga o‘tkazildi`); if (stage === 'done') onCompleteBlogger(id); };
