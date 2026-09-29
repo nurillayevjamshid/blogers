@@ -1,87 +1,10 @@
-import { Blogger, CollaborationType, BrandType } from './types';
-
-export async function fetchBloggersApi(): Promise<Blogger[]> {
-  try {
-    const res = await fetch('/api/bloggers');
-    if (!res.ok) throw new Error('Failed to fetch bloggers');
-    const json = await res.json();
-    return json.data || [];
-  } catch (err) {
-    console.error('Error fetching bloggers:', err);
-    return [];
-  }
-}
-
-export async function createBloggerApi(data: {
-  nickname: string;
-  date: string;
-  collaborationType: CollaborationType;
-  brand: BrandType;
-  notes?: string;
-  category?: string;
-  manager?: string;
-  time?: string;
-  audience?: string;
-}): Promise<{ success: boolean; data?: Blogger; error?: string }> {
-  try {
-    const res = await fetch('/api/bloggers', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    });
-    const json = await res.json();
-    return json;
-  } catch (err: any) {
-    console.error('Error creating blogger:', err);
-    return { success: false, error: err.message || 'Xatolik yuz berdi' };
-  }
-}
-
-export async function completeBloggerApi(id: string): Promise<boolean> {
-  try {
-    const res = await fetch(`/api/bloggers/${id}/complete`, {
-      method: 'PATCH',
-    });
-    return res.ok;
-  } catch (err) {
-    console.error('Error completing blogger:', err);
-    return false;
-  }
-}
-
-export async function reopenBloggerApi(id: string): Promise<boolean> {
-  try {
-    const res = await fetch(`/api/bloggers/${id}/reopen`, {
-      method: 'PATCH',
-    });
-    return res.ok;
-  } catch (err) {
-    console.error('Error reopening blogger:', err);
-    return false;
-  }
-}
-
-export async function deleteBloggerApi(id: string): Promise<boolean> {
-  try {
-    const res = await fetch(`/api/bloggers/${id}`, {
-      method: 'DELETE',
-    });
-    return res.ok;
-  } catch (err) {
-    console.error('Error deleting blogger:', err);
-    return false;
-  }
-}
-
-export async function resetDemoApi(): Promise<Blogger[]> {
-  try {
-    const res = await fetch('/api/reset-demo', {
-      method: 'POST',
-    });
-    const json = await res.json();
-    return json.data || [];
-  } catch (err) {
-    console.error('Error resetting demo:', err);
-    return [];
-  }
-}
+import { Blogger, BrandType, CollaborationType, Session } from './types';
+const KEY='mio_blogger_session';
+const headers=()=>{const s=getAuth();return {'Content-Type':'application/json',...(s?.token?{Authorization:`Bearer ${s.token}`}:{})}};
+export function getAuth():Session|null{try{return JSON.parse(localStorage.getItem(KEY)||'null')}catch{return null}}
+export function logoutAuth(){localStorage.removeItem(KEY)}
+export async function loginApi(username:string,password:string):Promise<{success:boolean;session?:Session;error?:string}>{try{const r=await fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username,password})});const j=await r.json();if(j.session)localStorage.setItem(KEY,JSON.stringify(j.session));return j}catch{return{success:false,error:'Server bilan bog‘lanib bo‘lmadi.'}}}
+export async function fetchBloggersApi():Promise<Blogger[]>{const r=await fetch('/api/bloggers',{headers:headers()});const j=await r.json();return j.data||[]}
+export async function addBloggerApi(data:{nickname:string;date:string;collaborationType:CollaborationType;brand:BrandType;manager?:string}){const r=await fetch('/api/bloggers',{method:'POST',headers:headers(),body:JSON.stringify(data)});return r.json() as Promise<{success:boolean;data?:Blogger;error?:string}>}
+export async function completeBloggerApi(id:string){const r=await fetch(`/api/bloggers/${id}/complete`,{method:'PATCH',headers:headers()});return r.ok}
+export async function deleteBloggerApi(id:string){const r=await fetch(`/api/bloggers/${id}`,{method:'DELETE',headers:headers()});return r.ok}
