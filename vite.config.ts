@@ -18,7 +18,7 @@ export default defineConfig(() => {
       // Disable file watching when DISABLE_HMR is true to save CPU during agent edits.
       watch: process.env.DISABLE_HMR === 'true' ? null : {},
       // Allow the sandbox's public preview hostname during mobile QA.
-      allowedHosts: true,
+      allowedHosts: ['localhost', '.manus.computer'],
     },
   };
 });
