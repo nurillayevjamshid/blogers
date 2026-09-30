@@ -187,9 +187,15 @@ app.patch('/api/bloggers/:id/complete', auth('admin'), async (req, res) => {
 });
 app.delete('/api/bloggers/:id', auth('admin'), async (req, res) => {
   try {
-    const data = await readBloggers(); const next = data.filter((item) => item.id !== req.params.id);
-    if (next.length === data.length) return fail(res, 404, 'Bloger topilmadi.');
-    await writeBloggers(next); return res.json({ success: true });
+    const data = await readBloggers(); const blogger = data.find((item) => item.id === req.params.id);
+    if (!blogger) return fail(res, 404, 'Bloger topilmadi.');
+    if (supabase) {
+      const { error } = await supabase.from('bloggers').delete().eq('id', req.params.id);
+      if (error) throw error;
+    } else {
+      await writeBloggers(data.filter((item) => item.id !== req.params.id));
+    }
+    return res.json({ success: true });
   } catch (error) { console.error(error); return fail(res, 500, 'Blogerni o‘chirishda xatolik yuz berdi.'); }
 });
 

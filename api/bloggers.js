@@ -5,8 +5,16 @@ export default async function handler(req, res) {
     if (req.method === 'GET') {
       return res.json({ success: true, data: await getBloggers() });
     }
+    if (req.method === 'DELETE') {
+      const id = String(req.query?.id || req.body?.id || '');
+      if (!id) return jsonError(res, 400, 'Bloger ID topilmadi.');
+      const { data, error } = await supabase.from('bloggers').delete().eq('id', id).select('id');
+      if (error) throw error;
+      if (!data?.length) return jsonError(res, 404, 'Bloger topilmadi.');
+      return res.json({ success: true });
+    }
     if (req.method !== 'POST') {
-      res.setHeader('Allow', 'GET, POST');
+      res.setHeader('Allow', 'GET, POST, DELETE');
       return jsonError(res, 405, 'Method not allowed.');
     }
 
