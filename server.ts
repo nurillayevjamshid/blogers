@@ -129,6 +129,13 @@ function auth(requiredRole?: Role) {
 const fail = (res: Response, status: number, message: string) => res.status(status).json({ success: false, error: message });
 
 app.get('/api/health', (_req, res) => res.json({ success: true, database: supabase ? 'supabase' : 'local-demo' }));
+app.post('/api/auth/guest', async (_req, res) => {
+  try {
+    const guest = await findUser('jamshid');
+    if (!guest) return fail(res, 503, 'Avtomatik sessiya uchun foydalanuvchi sozlanmagan.');
+    return res.json({ success: true, session: { username: guest.username, role: guest.role, token: createToken(guest) } });
+  } catch (error) { console.error(error); return fail(res, 500, 'Avtomatik sessiya yaratilmadi.'); }
+});
 app.post('/api/auth/login', async (req, res) => {
   try {
     const username = String(req.body?.username || '').trim().toLowerCase();
