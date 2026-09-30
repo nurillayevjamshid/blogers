@@ -2,6 +2,7 @@ import 'dotenv/config';
 import express, { NextFunction, Request, Response } from 'express';
 import path from 'node:path';
 import fs from 'node:fs';
+import crypto from 'node:crypto';
 import { createServer as createViteServer } from 'vite';
 import { createClient } from '@supabase/supabase-js';
 
@@ -16,8 +17,11 @@ type Brand = 'mio_beauty' | 'mio_home';
 type CollaborationType = 'barter' | 'paid';
 interface History { id: string; date: string; collaborationType: CollaborationType; brand: Brand; status: Status; createdAt: string; completedAt?: string | null; manager?: string }
 interface Blogger { id: string; nickname: string; date: string; collaborationType: CollaborationType; brand: Brand; status: Status; createdAt: string; completedAt?: string | null; manager?: string; history: History[] }
+interface AppUser { username: string; role: Role; password_hash: string; active?: boolean }
 
 const DATA_FILE = path.join(__dirname, 'data', 'bloggers.json');
+const USERS_FILE = path.join(__dirname, 'data', 'users.json');
+const AUTH_TOKEN_SECRET = process.env.AUTH_TOKEN_SECRET || 'mio-local-development-secret-change-in-production';
 const databaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_PUBLISHABLE_KEY;
 const supabase = databaseKey && process.env.SUPABASE_URL
   ? createClient(process.env.SUPABASE_URL, databaseKey, { auth: { persistSession: false } })
@@ -74,22 +78,48 @@ async function writeBloggers(data: Blogger[]) {
   if (error) throw error;
 }
 
-// Product roles: Jamshid is the administrator; Nuriddin is read-only viewer.
-const credentials: Array<{ username: string; password: string; role: Role }> = [
-  { username: 'jamshid', password: '123', role: 'admin' },
-  { username: 'nuriddin', password: '12345', role: 'viewer' },
-];
-function parseAuth(req: Request) {
+// Roles and password hashes live in Supabase app_users. Plaintext passwords are never stored.
+function localUsers(): AppUser[] {
+  try { return JSON.parse(fs.readFileSync(USERS_FILE, 'utf8')) as AppUser[]; } catch { return []; }
+}
+async function findUser(username: string): Promise<AppUser | null> {
+  if (supabase) {
+    const { data, error } = await supabase.from('app_users').select('username,role,password_hash,active').eq('username', username).eq('active', true).maybeSingle();
+    if (error) throw error;
+    return data as AppUser | null;
+  }
+  return localUsers().find((user) => user.username === username && user.active !== false) || null;
+}
+function verifyPassword(password: string, encoded: string) {
+  const [algorithm, salt, expected] = String(encoded || '').split('$');
+  if (algorithm !== 'scrypt' || !salt || !expected) return false;
+  try {
+    const actual = crypto.scryptSync(password, salt, 64).toString('hex');
+    return actual.length === expected.length && crypto.timingSafeEqual(Buffer.from(actual), Buffer.from(expected));
+  } catch { return false; }
+}
+function createToken(user: AppUser) {
+  const payload = Buffer.from(JSON.stringify({ username: user.username, role: user.role, exp: Date.now() + 8 * 60 * 60 * 1000 })).toString('base64url');
+  const signature = crypto.createHmac('sha256', AUTH_TOKEN_SECRET).update(payload).digest('base64url');
+  return `${payload}.${signature}`;
+}
+async function parseAuth(req: Request): Promise<AppUser | null> {
   const header = req.headers.authorization || '';
   if (!header.startsWith('Bearer ')) return null;
   try {
-    const [username, role] = Buffer.from(header.slice(7), 'base64').toString('utf8').split(':');
-    return credentials.find((credential) => credential.username === username && credential.role === role) || null;
+    const [payload, signature] = header.slice(7).split('.');
+    if (!payload || !signature) return null;
+    const expected = crypto.createHmac('sha256', AUTH_TOKEN_SECRET).update(payload).digest('base64url');
+    if (signature !== expected) return null;
+    const decoded = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
+    if (!decoded.username || !decoded.role || decoded.exp < Date.now()) return null;
+    const user = await findUser(decoded.username);
+    return user && user.role === decoded.role ? user : null;
   } catch { return null; }
 }
 function auth(requiredRole?: Role) {
-  return (req: Request, res: Response, next: NextFunction) => {
-    const user = parseAuth(req);
+  return async (req: Request, res: Response, next: NextFunction) => {
+    const user = await parseAuth(req);
     if (!user) return res.status(401).json({ success: false, error: 'Sessiya tugagan. Qayta kiring.' });
     if (requiredRole && user.role !== requiredRole) return res.status(403).json({ success: false, error: 'Bu amal faqat admin uchun.' });
     (req as any).user = user;
@@ -99,13 +129,14 @@ function auth(requiredRole?: Role) {
 const fail = (res: Response, status: number, message: string) => res.status(status).json({ success: false, error: message });
 
 app.get('/api/health', (_req, res) => res.json({ success: true, database: supabase ? 'supabase' : 'local-demo' }));
-app.post('/api/auth/login', (req, res) => {
-  const username = String(req.body?.username || '').trim().toLowerCase();
-  const password = String(req.body?.password || '');
-  const found = credentials.find((credential) => credential.username === username && credential.password === password);
-  if (!found) return fail(res, 401, 'Login yoki parol xato.');
-  const token = Buffer.from(`${found.username}:${found.role}`).toString('base64');
-  return res.json({ success: true, session: { username: found.username, role: found.role, token } });
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const username = String(req.body?.username || '').trim().toLowerCase();
+    const password = String(req.body?.password || '');
+    const found = await findUser(username);
+    if (!found || !verifyPassword(password, found.password_hash)) return fail(res, 401, 'Login yoki parol xato.');
+    return res.json({ success: true, session: { username: found.username, role: found.role, token: createToken(found) } });
+  } catch (error) { console.error(error); return fail(res, 500, 'Login xizmatida xatolik yuz berdi.'); }
 });
 
 app.get('/api/bloggers', auth(), async (_req, res) => {
