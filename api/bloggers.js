@@ -1,4 +1,4 @@
-import { getBloggers, saveBloggers, normalizeNickname, jsonError } from './_supabase.js';
+import { supabase, getBloggers, saveBloggers, normalizeNickname, jsonError } from './_supabase.js';
 
 export default async function handler(req, res) {
   try {
