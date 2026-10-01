@@ -176,6 +176,22 @@ app.post('/api/bloggers', auth('admin'), async (req, res) => {
     return res.status(201).json({ success: true, data: blogger, isRepeat: false });
   } catch (error) { console.error(error); return fail(res, 500, 'Blogerni saqlashda xatolik yuz berdi.'); }
 });
+app.patch('/api/bloggers/:id', auth('admin'), async (req, res) => {
+  try {
+    const { nickname, date, collaborationType, brand, manager } = req.body || {};
+    if (!nickname?.trim()) return fail(res, 400, "Bloger nickname'ini kiriting.");
+    if (!date) return fail(res, 400, 'Sanani tanlang.');
+    const type: CollaborationType = ['barter', 'paid'].includes(collaborationType) ? collaborationType : 'barter';
+    const selectedBrand: Brand = ['mio_beauty', 'mio_home'].includes(brand) ? brand : 'mio_beauty';
+    const normalized = normalize(nickname); const key = normalized.slice(1).toLowerCase();
+    const data = await readBloggers(); const blogger = data.find((item) => item.id === req.params.id);
+    if (!blogger) return fail(res, 404, 'Bloger topilmadi.');
+    if (data.some((item) => item.id !== blogger.id && item.nickname.slice(1).toLowerCase() === key)) return fail(res, 409, 'Bu nickname allaqachon mavjud.');
+    Object.assign(blogger, { nickname: normalized, date, collaborationType: type, brand: selectedBrand, manager: manager?.trim() || undefined });
+    if (blogger.history?.length) Object.assign(blogger.history[0], { date, collaborationType: type, brand: selectedBrand, manager: manager?.trim() || undefined });
+    await writeBloggers(data); return res.json({ success: true, data: blogger });
+  } catch (error) { console.error(error); return fail(res, 500, 'Blogerni tahrirlashda xatolik yuz berdi.'); }
+});
 app.patch('/api/bloggers/:id/complete', auth('admin'), async (req, res) => {
   try {
     const data = await readBloggers(); const blogger = data.find((item) => item.id === req.params.id);

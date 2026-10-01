@@ -13,8 +13,25 @@ export default async function handler(req, res) {
       if (!data?.length) return jsonError(res, 404, 'Bloger topilmadi.');
       return res.json({ success: true });
     }
+    if (req.method === 'PATCH') {
+      const id = String(req.query?.id || req.body?.id || '');
+      const { nickname, date, collaborationType, brand, manager } = req.body || {};
+      if (!id) return jsonError(res, 400, 'Bloger ID topilmadi.');
+      if (!nickname || typeof nickname !== 'string' || !nickname.trim()) return jsonError(res, 400, "Bloger nickname'ini kiriting.");
+      if (!date) return jsonError(res, 400, 'Sanani tanlang.');
+      const bloggers = await getBloggers();
+      const blogger = bloggers.find((item) => item.id === id);
+      if (!blogger) return jsonError(res, 404, 'Bloger topilmadi.');
+      const normalized = normalizeNickname(nickname); const key = normalized.slice(1).toLowerCase();
+      if (bloggers.some((item) => item.id !== id && item.nickname.replace(/^@/, '').toLowerCase() === key)) return jsonError(res, 409, 'Bu nickname allaqachon mavjud.');
+      const type = ['barter', 'paid'].includes(collaborationType) ? collaborationType : 'barter';
+      const br = ['mio_beauty', 'mio_home'].includes(brand) ? brand : 'mio_beauty';
+      Object.assign(blogger, { nickname: normalized, date, collaborationType: type, brand: br, manager: manager?.trim() || undefined });
+      if (blogger.history?.length) Object.assign(blogger.history[0], { date, collaborationType: type, brand: br, manager: manager?.trim() || undefined });
+      await saveBloggers(bloggers); return res.json({ success: true, data: blogger });
+    }
     if (req.method !== 'POST') {
-      res.setHeader('Allow', 'GET, POST, DELETE');
+      res.setHeader('Allow', 'GET, POST, PATCH, DELETE');
       return jsonError(res, 405, 'Method not allowed.');
     }
 
