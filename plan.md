@@ -6,7 +6,7 @@ Ikki asosiy tabli, login/rol nazorati bilan ishlaydigan blogger hamkorlik tracke
 ## Arxitektura
 - **Frontend:** React + TypeScript + Vite, browser-rendered SPA.
 - **Backend:** mavjud Express server (`server.ts`) JSON API bilan; development va productionda bir origin.
-- **Persistence:** mavjud Supabase `bloggers` jadvali va uning `history` JSON ustuni. Supabase env yo‘q bo‘lsa, lokal `data/bloggers.json` fallback faqat development/demo uchun qoladi.
+- **Persistence:** `data/bloggers.json` va `data/users.json` fayllari. Yozish atomic temporary-file rename orqali bajariladi.
 - **Auth:** server API login endpointi role token beradi; barcha mutatsiyalar serverda admin roli bilan tekshiriladi. Viewer faqat GET qila oladi.
 - **Deployment:** mavjud Express container/static SPA oqimi saqlanadi; private API javoblari cache qilinmaydi.
 

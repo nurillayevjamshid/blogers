@@ -4,7 +4,6 @@ import path from 'node:path';
 import fs from 'node:fs';
 import crypto from 'node:crypto';
 import { createServer as createViteServer } from 'vite';
-import { createClient } from '@supabase/supabase-js';
 
 const __dirname = process.cwd();
 const PORT = Number(process.env.PORT || 3000);
@@ -22,10 +21,6 @@ interface AppUser { username: string; role: Role; password_hash: string; active?
 const DATA_FILE = path.join(__dirname, 'data', 'bloggers.json');
 const USERS_FILE = path.join(__dirname, 'data', 'users.json');
 const AUTH_TOKEN_SECRET = process.env.AUTH_TOKEN_SECRET || 'mio-local-development-secret-change-in-production';
-const databaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_PUBLISHABLE_KEY;
-const supabase = databaseKey && process.env.SUPABASE_URL
-  ? createClient(process.env.SUPABASE_URL, databaseKey, { auth: { persistSession: false } })
-  : null;
 
 const normalize = (value: unknown) => `@${String(value || '').trim().replace(/^@+/, '')}`;
 const rowToBlogger = (row: any): Blogger => {
@@ -42,12 +37,6 @@ const rowToBlogger = (row: any): Blogger => {
     manager: row.manager || undefined, history: Array.isArray(row.history) && row.history.length ? row.history : [fallbackHistory],
   };
 };
-const bloggerToRow = (b: Blogger) => ({
-  id: b.id, nickname: b.nickname, date: b.date, collaboration_type: b.collaborationType,
-  brand: b.brand, status: b.status, created_at: b.createdAt, completed_at: b.completedAt || null,
-  manager: b.manager || null, history: b.history || [],
-});
-
 function localRead(): Blogger[] {
   try {
     const raw = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8')) as Blogger[];
@@ -65,29 +54,20 @@ function localRead(): Blogger[] {
     return [...map.values()];
   } catch { return []; }
 }
-function localWrite(data: Blogger[]) { fs.mkdirSync(path.dirname(DATA_FILE), { recursive: true }); fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2)); }
-async function readBloggers() {
-  if (!supabase) return localRead();
-  const { data, error } = await supabase.from('bloggers').select('*').order('created_at', { ascending: false });
-  if (error) throw error;
-  return (data || []).map(rowToBlogger);
+function localWrite(data: Blogger[]) {
+  fs.mkdirSync(path.dirname(DATA_FILE), { recursive: true });
+  const tempFile = `${DATA_FILE}.tmp`;
+  fs.writeFileSync(tempFile, `${JSON.stringify(data, null, 2)}\n`, 'utf8');
+  fs.renameSync(tempFile, DATA_FILE);
 }
-async function writeBloggers(data: Blogger[]) {
-  if (!supabase) return localWrite(data);
-  const { error } = await supabase.from('bloggers').upsert(data.map(bloggerToRow), { onConflict: 'id' });
-  if (error) throw error;
-}
+async function readBloggers() { return localRead(); }
+async function writeBloggers(data: Blogger[]) { localWrite(data); }
 
-// Roles and password hashes live in Supabase app_users. Plaintext passwords are never stored.
+// Roles and password hashes live in data/users.json. Plaintext passwords are never stored.
 function localUsers(): AppUser[] {
   try { return JSON.parse(fs.readFileSync(USERS_FILE, 'utf8')) as AppUser[]; } catch { return []; }
 }
 async function findUser(username: string): Promise<AppUser | null> {
-  if (supabase) {
-    const { data, error } = await supabase.from('app_users').select('username,role,password_hash,active').eq('username', username).eq('active', true).maybeSingle();
-    if (error) throw error;
-    return data as AppUser | null;
-  }
   return localUsers().find((user) => user.username === username && user.active !== false) || null;
 }
 function verifyPassword(password: string, encoded: string) {
@@ -128,7 +108,7 @@ function auth(requiredRole?: Role) {
 }
 const fail = (res: Response, status: number, message: string) => res.status(status).json({ success: false, error: message });
 
-app.get('/api/health', (_req, res) => res.json({ success: true, database: supabase ? 'supabase' : 'local-demo' }));
+app.get('/api/health', (_req, res) => res.json({ success: true, database: 'json-file' }));
 app.post('/api/auth/guest', async (_req, res) => {
   try {
     const guest = await findUser('jamshid');
@@ -205,12 +185,7 @@ app.delete('/api/bloggers/:id', auth('admin'), async (req, res) => {
   try {
     const data = await readBloggers(); const blogger = data.find((item) => item.id === req.params.id);
     if (!blogger) return fail(res, 404, 'Bloger topilmadi.');
-    if (supabase) {
-      const { error } = await supabase.from('bloggers').delete().eq('id', req.params.id);
-      if (error) throw error;
-    } else {
-      await writeBloggers(data.filter((item) => item.id !== req.params.id));
-    }
+    await writeBloggers(data.filter((item) => item.id !== req.params.id));
     return res.json({ success: true });
   } catch (error) { console.error(error); return fail(res, 500, 'Blogerni o‘chirishda xatolik yuz berdi.'); }
 });
@@ -221,6 +196,6 @@ async function start() {
   } else {
     const dist = path.join(process.cwd(), 'dist'); app.use(express.static(dist)); app.get('*', (_req, res) => res.sendFile(path.join(dist, 'index.html')));
   }
-  app.listen(PORT, '0.0.0.0', () => console.log(`MIO server running on ${PORT} · database: ${supabase ? 'supabase' : 'local-demo'}`));
+  app.listen(PORT, '0.0.0.0', () => console.log(`MIO server running on ${PORT} · database: json-file`));
 }
 start();

@@ -1,16 +1,17 @@
-import { supabase, getBloggers, saveBloggers, normalizeNickname, jsonError } from './_supabase.js';
+import { getBloggers, saveBloggers, normalizeNickname, jsonError } from './_json.js';
 
 export default async function handler(req, res) {
   try {
     if (req.method === 'GET') {
-      return res.json({ success: true, data: await getBloggers() });
+      return res.json({ success: true, data: getBloggers() });
     }
     if (req.method === 'DELETE') {
       const id = String(req.query?.id || req.body?.id || '');
       if (!id) return jsonError(res, 400, 'Bloger ID topilmadi.');
-      const { data, error } = await supabase.from('bloggers').delete().eq('id', id).select('id');
-      if (error) throw error;
-      if (!data?.length) return jsonError(res, 404, 'Bloger topilmadi.');
+      const bloggers = getBloggers();
+      const filtered = bloggers.filter((item) => item.id !== id);
+      if (filtered.length === bloggers.length) return jsonError(res, 404, 'Bloger topilmadi.');
+      saveBloggers(filtered);
       return res.json({ success: true });
     }
     if (req.method === 'PATCH') {
@@ -19,7 +20,7 @@ export default async function handler(req, res) {
       if (!id) return jsonError(res, 400, 'Bloger ID topilmadi.');
       if (!nickname || typeof nickname !== 'string' || !nickname.trim()) return jsonError(res, 400, "Bloger nickname'ini kiriting.");
       if (!date) return jsonError(res, 400, 'Sanani tanlang.');
-      const bloggers = await getBloggers();
+      const bloggers = getBloggers();
       const blogger = bloggers.find((item) => item.id === id);
       if (!blogger) return jsonError(res, 404, 'Bloger topilmadi.');
       const normalized = normalizeNickname(nickname); const key = normalized.slice(1).toLowerCase();
@@ -28,7 +29,7 @@ export default async function handler(req, res) {
       const br = ['mio_beauty', 'mio_home'].includes(brand) ? brand : 'mio_beauty';
       Object.assign(blogger, { nickname: normalized, date, collaborationType: type, brand: br, manager: manager?.trim() || undefined });
       if (blogger.history?.length) Object.assign(blogger.history[0], { date, collaborationType: type, brand: br, manager: manager?.trim() || undefined });
-      await saveBloggers(bloggers); return res.json({ success: true, data: blogger });
+      saveBloggers(bloggers); return res.json({ success: true, data: blogger });
     }
     if (req.method !== 'POST') {
       res.setHeader('Allow', 'GET, POST, PATCH, DELETE');
@@ -43,7 +44,7 @@ export default async function handler(req, res) {
     const br = ['mio_beauty', 'mio_home'].includes(brand) ? brand : 'mio_beauty';
     const normalized = normalizeNickname(nickname);
     const cleanKey = normalized.slice(1).toLowerCase();
-    const bloggers = await getBloggers();
+    const bloggers = getBloggers();
     const existing = bloggers.find((b) => b.nickname.replace(/^@/, '').toLowerCase() === cleanKey);
     const newCollabItem = {
       id: `collab_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
@@ -62,7 +63,7 @@ export default async function handler(req, res) {
       if (manager !== undefined) existing.manager = manager.trim() || undefined;
       if (notes !== undefined) existing.notes = notes || undefined;
       if (audience) existing.audience = audience;
-      await saveBloggers(bloggers);
+      saveBloggers(bloggers);
       return res.status(200).json({ success: true, data: existing, isRepeat: true });
     }
 
@@ -75,7 +76,7 @@ export default async function handler(req, res) {
       history: [newCollabItem],
     };
     bloggers.unshift(blogger);
-    await saveBloggers(bloggers);
+    saveBloggers(bloggers);
     return res.status(201).json({ success: true, data: blogger, isRepeat: false });
   } catch (error) {
     console.error(error);
