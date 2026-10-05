@@ -80,7 +80,8 @@ export interface WorkingItem {
 }
 
 export default function App() {
-  const [session, setSession] = useState<Session | null>(() => getAuth());
+  // Har doim mini app ochilganda login parol so'ralishi uchun session xotiradan avtomatik olinmaydi
+  const [session, setSession] = useState<Session | null>(null);
   const [bloggers, setBloggers] = useState<Blogger[]>([]);
   const [tab, setTab] = useState<Tab>('directory');
   const [period, setPeriod] = useState<Period>('all');
