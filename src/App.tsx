@@ -682,7 +682,7 @@ function Working({
         </div>
         <span className="count-pill amber">{rows.length} ta jarayonda</span>
       </div>
-      <div className="table-wrap">
+      <div className="table-wrap working-table">
         <table>
           <thead>
             <tr>
@@ -726,6 +726,46 @@ function Working({
             ))}
           </tbody>
         </table>
+        {rows.length === 0 && <Empty text="Hozir ishlanayotgan blogerlar yo‘q." />}
+      </div>
+      <div className="working-cards">
+        {rows.map((b) => (
+          <div key={b.historyId} className="blogger-card">
+            <div className="flex min-w-0 items-start justify-between gap-3">
+              <div className="min-w-0 text-left">
+                <a
+                  className="nickname-link"
+                  href={instagramUrl(b.nickname)}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  <strong className="truncate">{b.nickname}</strong>
+                  <ExternalLink className="h-3.5 w-3.5" />
+                </a>
+                <span className="mt-1 block text-xs text-slate-500">
+                  Yuborilgan: <b>{formatDdMmYyyy(b.date)}</b>
+                </span>
+                <span className="mt-0.5 block text-xs text-slate-400">
+                  Mas’ul: {b.manager || 'Belgilanmagan'}
+                </span>
+              </div>
+            </div>
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3">
+              <div className="flex items-center gap-2">
+                <Badge type={b.collaborationType} />
+                <BrandBadge brand={b.brand} />
+              </div>
+              <button
+                disabled={!canEdit}
+                onClick={() => onComplete(b.id, b.historyId)}
+                className="complete-button"
+              >
+                <Check className="h-4 w-4" />
+                Bajarildi
+              </button>
+            </div>
+          </div>
+        ))}
         {rows.length === 0 && <Empty text="Hozir ishlanayotgan blogerlar yo‘q." />}
       </div>
     </div>
