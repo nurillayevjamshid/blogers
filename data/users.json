@@ -1,0 +1,14 @@
+[
+  {
+    "username": "jamshid",
+    "role": "admin",
+    "password_hash": "scrypt$a701af02ab51073927aefc52d34feaf2$e5c17d6ece50cb467793de06fa326e727ced056d36267392344f8bad73de0be6569e435c74fd7ae8566ce6fc463602a6a6688e28331d8c75b9b5e137578ddab1",
+    "active": true
+  },
+  {
+    "username": "nuriddin",
+    "role": "viewer",
+    "password_hash": "scrypt$4feb20ec219584ff83026bddcb4797c7$0a54155536e29ae70f0d9cdb2d2810e6af0cdbf5a7c17c398ec8df056ce991005fa00e74fb74c990acad8e7ff87a54fe9e186777a0a489e0bdca0d9dfb0c15c5",
+    "active": true
+  }
+]
