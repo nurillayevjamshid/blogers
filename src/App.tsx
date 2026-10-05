@@ -1002,6 +1002,8 @@ function Login({ onLogin }: { onLogin: (s: Session) => void }) {
       </div>
     </div>
   );
+}
+
 function Modal({ title, onClose, children }: any) {
   return (
     <div className="modal-backdrop">
