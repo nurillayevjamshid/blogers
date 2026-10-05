@@ -13,6 +13,7 @@ import {
   UserRound,
   X,
   Calendar,
+  LogOut,
 } from 'lucide-react';
 import {
   addBloggerApi,
@@ -104,14 +105,6 @@ export default function App() {
     }
   };
 
-  useEffect(() => {
-    if (!session) {
-      guestLoginApi().then((r) => {
-        if (r.session) setSession(r.session);
-        else setError(r.error || 'Avtomatik sessiya yaratilmadi.');
-      });
-    }
-  }, [session]);
 
   useEffect(() => {
     if (session) load();
@@ -206,17 +199,13 @@ export default function App() {
     setAddOpen(false);
   };
 
+  const handleLogout = () => {
+    localStorage.removeItem('mio_blogger_session');
+    setSession(null);
+  };
+
   if (!session) {
-    return (
-      <div className="login-page">
-        <div className="login-card">
-          <div className="brand-mark large">m</div>
-          <p className="eyebrow mt-6">MIO bloggerlar boshqaruvi</p>
-          <h1 className="mt-2 text-3xl font-black">Tizim yuklanmoqda...</h1>
-          <p className="mt-2 text-sm leading-6 text-slate-500">Avtomatik sessiya ochilmoqda.</p>
-        </div>
-      </div>
-    );
+    return <Login onLogin={(s) => setSession(s)} />;
   }
 
   return (
@@ -232,7 +221,7 @@ export default function App() {
           </div>
           <div className="flex items-center gap-3">
             <div className="hidden text-right sm:block">
-              <p className="text-xs font-black">{session.username === 'jamshid' ? 'Jamshid' : 'Nuriddin'}</p>
+              <p className="text-xs font-black">{session.username}</p>
               <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
                 {session.role === 'admin' ? 'General admin' : 'Viewer'}
               </p>
@@ -240,6 +229,13 @@ export default function App() {
             <div className="avatar">
               <UserRound className="h-4 w-4" />
             </div>
+            <button
+              onClick={handleLogout}
+              className="icon-button"
+              title="Tizimdan chiqish"
+            >
+              <LogOut className="h-4 w-4 text-slate-500" />
+            </button>
           </div>
         </div>
       </header>
@@ -940,6 +936,71 @@ function AddModal({ onClose, onSubmit, existing }: any) {
   );
 }
 
+function Login({ onLogin }: { onLogin: (s: Session) => void }) {
+  const [u, setU] = useState('');
+  const [p, setP] = useState('');
+  const [e, setE] = useState('');
+  const [b, setB] = useState(false);
+
+  const submit = async (x: React.FormEvent) => {
+    x.preventDefault();
+    if (!u.trim() || !p.trim()) {
+      return setE('Login va parolni kiriting.');
+    }
+    setB(true);
+    setE('');
+    const r = await loginApi(u, p);
+    setB(false);
+    if (!r.success || !r.session) {
+      return setE(r.error || 'Login yoki parol xato.');
+    }
+    onLogin(r.session);
+  };
+
+  return (
+    <div className="login-page">
+      <div className="login-card">
+        <div className="brand-mark large">m</div>
+        <p className="eyebrow mt-6">MIO bloggerlar boshqaruvi</p>
+        <h1 className="mt-2 text-3xl font-black">Tizimga kirish</h1>
+        <p className="mt-2 text-sm leading-6 text-slate-500">
+          Iltimos, tizimga kirish uchun login va parolingizni kiriting.
+        </p>
+        <form onSubmit={submit} className="mt-7 space-y-4">
+          <label className="field-label">
+            Login
+            <input
+              autoFocus
+              className="control mt-2"
+              value={u}
+              onChange={(x: any) => setU(x.target.value)}
+              autoComplete="username"
+              placeholder="Loginni kiriting"
+            />
+          </label>
+          <label className="field-label">
+            Parol
+            <input
+              className="control mt-2"
+              type="password"
+              value={p}
+              onChange={(x: any) => setP(x.target.value)}
+              autoComplete="current-password"
+              placeholder="Parolni kiriting"
+            />
+          </label>
+          {e && <p className="text-sm font-semibold text-rose-600">{e}</p>}
+          <button className="primary-button w-full justify-center" disabled={b}>
+            {b ? 'Tekshirilmoqda...' : 'Kirish'}
+          </button>
+        </form>
+        <div className="mt-6 flex items-center gap-2 rounded-2xl bg-slate-50 p-3 text-xs text-slate-500">
+          <ShieldCheck className="h-4 w-4 text-emerald-500" />
+          Yagona login va parol orqali xavfsiz boshqaruv.
+        </div>
+      </div>
+    </div>
+  );
 function Modal({ title, onClose, children }: any) {
   return (
     <div className="modal-backdrop">
@@ -958,3 +1019,5 @@ function Modal({ title, onClose, children }: any) {
     </div>
   );
 }
+
+
