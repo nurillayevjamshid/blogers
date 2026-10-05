@@ -3,7 +3,7 @@ const KEY='mio_blogger_session';
 const headers=()=>{const s=getAuth();return {'Content-Type':'application/json',...(s?.token?{Authorization:`Bearer ${s.token}`}:{})}};
 export function getAuth():Session|null{try{return JSON.parse(localStorage.getItem(KEY)||'null')}catch{return null}}
 export function logoutAuth(){localStorage.removeItem(KEY)}
-export async function guestLoginApi():Promise<{success:boolean;session?:Session;error?:string}>{try{const r=await fetch('/api/auth/guest',{method:'POST',headers:{'Content-Type':'application/json'}});const j=await r.json();if(j.session)localStorage.setItem(KEY,JSON.stringify(j.session));return j}catch{return{success:false,error:'Server bilan bog‘lanib bo‘lmadi.'}}}
+export async function guestLoginApi():Promise<{success:boolean;session?:Session;error?:string}>{return {success:false,error:'Avtomatik kirish yopiq.'}}
 export async function loginApi(username:string,password:string):Promise<{success:boolean;session?:Session;error?:string}>{
   const u = String(username||'').trim().toLowerCase();
   const p = String(password||'').trim();

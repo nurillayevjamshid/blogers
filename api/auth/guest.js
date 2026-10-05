@@ -1,16 +1,7 @@
 export default function handler(req, res) {
-  if (req.method !== 'POST') {
-    res.setHeader('Allow', 'POST');
-    return res.status(405).json({ success: false, error: 'Method not allowed.' });
-  }
-
-  // This Vercel deployment is intentionally open: every visitor receives the admin session.
-  return res.status(200).json({
-    success: true,
-    session: {
-      username: 'jamshid',
-      role: 'admin',
-      token: 'vercel-open-admin-session',
-    },
+  // Avtomatik kirish (guest) butunlay o'chirildi
+  return res.status(401).json({
+    success: false,
+    error: 'Avtomatik kirish yopiq. Iltimos, login va parol orqali kiring.',
   });
 }

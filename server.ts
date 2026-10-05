@@ -106,11 +106,7 @@ const fail = (res: Response, status: number, message: string) => res.status(stat
 app.get('/api/health', (_req, res) => res.json({ success: true, database: 'turso' }));
 
 app.post('/api/auth/guest', async (_req, res) => {
-  try {
-    const guest = await findUser('jamshid');
-    if (!guest) return fail(res, 503, 'Avtomatik sessiya uchun foydalanuvchi sozlanmagan.');
-    return res.json({ success: true, session: { username: guest.username, role: guest.role, token: createToken(guest as AppUser) } });
-  } catch (error) { console.error(error); return fail(res, 500, 'Avtomatik sessiya yaratilmadi.'); }
+  return fail(res, 401, 'Avtomatik kirish yopiq. Iltimos, login va parol orqali kiring.');
 });
 
 app.post('/api/auth/login', async (req, res) => {
