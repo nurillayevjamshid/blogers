@@ -91,7 +91,7 @@ export async function getAllBloggers() {
 
   const [bloggerRows, historyRows] = await Promise.all([
     executeQuery('SELECT * FROM bloggers ORDER BY date DESC, created_at DESC'),
-    executeQuery('SELECT * FROM blogger_history ORDER BY created_at DESC'),
+    executeQuery('SELECT * FROM blogger_history ORDER BY date DESC, created_at DESC'),
   ]);
 
   const historyMap = new Map();
@@ -130,13 +130,19 @@ export async function getAllBloggers() {
       completedAt: b.completed_at || null,
     }];
 
+    // Agar blogerning hali bitmagan (pending) hamkorliklari bo'lsa,
+    // blogerning umumiy statusi 'pending' bo'ladi, aks holda 'completed'
+    const fullHistory = list.length > 0 ? list : fallbackHistory;
+    const hasPendingCollab = fullHistory.some((h) => h.status === 'pending');
+    const effectiveStatus = hasPendingCollab ? 'pending' : 'completed';
+
     return {
       id: b.id,
       nickname: b.nickname,
       date: b.date,
       collaborationType: b.collaboration_type,
       brand: b.brand,
-      status: b.status,
+      status: effectiveStatus,
       category: b.category || undefined,
       manager: b.manager || undefined,
       time: b.time || undefined,
@@ -145,7 +151,7 @@ export async function getAllBloggers() {
       isBlacklisted: Boolean(b.is_blacklisted),
       createdAt: b.created_at,
       completedAt: b.completed_at || null,
-      history: list.length > 0 ? list : fallbackHistory,
+      history: fullHistory,
     };
   });
 }
@@ -156,7 +162,7 @@ export async function getBloggerById(id) {
   if (!rows.length) return null;
   const b = rows[0];
 
-  const historyRows = await executeQuery('SELECT * FROM blogger_history WHERE blogger_id = ? ORDER BY created_at DESC', [id]);
+  const historyRows = await executeQuery('SELECT * FROM blogger_history WHERE blogger_id = ? ORDER BY date DESC, created_at DESC', [id]);
   const history = historyRows.map((h) => ({
     id: h.id,
     date: h.date,
@@ -171,13 +177,29 @@ export async function getBloggerById(id) {
     completedAt: h.completed_at || null,
   }));
 
+  const fullHistory = history.length > 0 ? history : [{
+    id: `${b.id}-initial`,
+    date: b.date,
+    collaborationType: b.collaboration_type,
+    brand: b.brand,
+    status: b.status,
+    category: b.category || undefined,
+    manager: b.manager || undefined,
+    time: b.time || undefined,
+    notes: b.notes || undefined,
+    createdAt: b.created_at,
+    completedAt: b.completed_at || null,
+  }];
+
+  const hasPending = fullHistory.some((h) => h.status === 'pending');
+
   return {
     id: b.id,
     nickname: b.nickname,
     date: b.date,
     collaborationType: b.collaboration_type,
     brand: b.brand,
-    status: b.status,
+    status: hasPending ? 'pending' : 'completed',
     category: b.category || undefined,
     manager: b.manager || undefined,
     time: b.time || undefined,
@@ -186,19 +208,7 @@ export async function getBloggerById(id) {
     isBlacklisted: Boolean(b.is_blacklisted),
     createdAt: b.created_at,
     completedAt: b.completed_at || null,
-    history: history.length > 0 ? history : [{
-      id: `${b.id}-initial`,
-      date: b.date,
-      collaborationType: b.collaboration_type,
-      brand: b.brand,
-      status: b.status,
-      category: b.category || undefined,
-      manager: b.manager || undefined,
-      time: b.time || undefined,
-      notes: b.notes || undefined,
-      createdAt: b.created_at,
-      completedAt: b.completed_at || null,
-    }],
+    history: fullHistory,
   };
 }
 
@@ -302,9 +312,36 @@ export async function deleteBlogger(id) {
   ]);
 }
 
-export async function completeBlogger(id) {
+export async function completeBlogger(id, historyId = null) {
   await initDatabase();
   const now = new Date().toISOString();
+
+  // Agar aniq bitta hamkorlik (historyId) yakunlanayotgan bo'lsa
+  if (historyId) {
+    await executeBatch([
+      {
+        sql: 'UPDATE blogger_history SET status = ?, completed_at = ? WHERE id = ?',
+        params: ['completed', now, historyId],
+      },
+    ]);
+
+    // Blogerning qolgan barcha hamkorliklarini tekshiramiz
+    const pendingList = await executeQuery(
+      'SELECT count(*) as count FROM blogger_history WHERE blogger_id = ? AND status = ?',
+      [id, 'pending']
+    );
+    const pendingCount = Number(pendingList[0]?.count || 0);
+
+    // Agar boshqa pending hamkorlik qolmagan bo'lsa, blogger ham completed bo'ladi
+    if (pendingCount === 0) {
+      await executeBatch([
+        { sql: 'UPDATE bloggers SET status = ?, completed_at = ? WHERE id = ?', params: ['completed', now, id] },
+      ]);
+    }
+    return getBloggerById(id);
+  }
+
+  // Agar umumiy blogger yakunlansa
   await executeBatch([
     { sql: 'UPDATE bloggers SET status = ?, completed_at = ? WHERE id = ?', params: ['completed', now, id] },
     { sql: 'UPDATE blogger_history SET status = ?, completed_at = ? WHERE blogger_id = ? AND status = ?', params: ['completed', now, id, 'pending'] },

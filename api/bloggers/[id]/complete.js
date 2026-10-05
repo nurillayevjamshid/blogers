@@ -8,10 +8,12 @@ export default async function handler(req, res) {
   }
   try {
     const id = String(req.query?.id || '');
+    const historyId = req.query?.historyId || req.body?.historyId || null;
+
     const blogger = await getBloggerById(id);
     if (!blogger) return jsonError(res, 404, 'Bloger topilmadi.');
 
-    const updated = await completeBlogger(id);
+    const updated = await completeBlogger(id, historyId ? String(historyId) : null);
     return res.json({ success: true, data: updated });
   } catch (error) {
     console.error(error);

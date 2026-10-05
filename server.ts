@@ -257,7 +257,8 @@ app.patch('/api/bloggers/:id/complete', auth('admin'), async (req, res) => {
   try {
     const blogger = await getBloggerById(req.params.id);
     if (!blogger) return fail(res, 404, 'Bloger topilmadi.');
-    const updated = await completeBlogger(req.params.id);
+    const historyId = req.query?.historyId || req.body?.historyId || null;
+    const updated = await completeBlogger(req.params.id, historyId ? String(historyId) : null);
     return res.json({ success: true, data: updated });
   } catch (error) {
     console.error(error);
