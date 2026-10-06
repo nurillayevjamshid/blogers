@@ -12,6 +12,10 @@ import {
   completeBlogger,
   findUser,
   normalizeNickname,
+  getAllUsers,
+  saveUser,
+  toggleUserActive,
+  deleteUser,
 } from './src/db.js';
 
 const PORT = Number(process.env.PORT || 3000);
@@ -281,6 +285,69 @@ app.delete('/api/bloggers/:id', auth('admin'), async (req, res) => {
   } catch (error) {
     console.error(error);
     return fail(res, 500, 'Blogerni o‘chirishda xatolik yuz berdi.');
+  }
+});
+
+app.get('/api/users', auth('admin'), async (_req, res) => {
+  try {
+    const data = await getAllUsers();
+    return res.json({ success: true, data });
+  } catch (error) {
+    console.error(error);
+    return fail(res, 500, 'Foydalanuvchilarni yuklashda xatolik.');
+  }
+});
+
+app.post('/api/users', auth('admin'), async (req, res) => {
+  try {
+    const { username, name, role, password } = req.body || {};
+    if (!username?.trim()) return fail(res, 400, 'Login (username) kiriting.');
+    if (!password?.trim()) return fail(res, 400, 'Parol kiriting.');
+    const saved = await saveUser({
+      username: username.trim(),
+      name: name?.trim() || username.trim(),
+      role: role || 'manager',
+      password: password.trim(),
+      active: true,
+    });
+    return res.status(201).json({ success: true, data: saved });
+  } catch (error) {
+    console.error(error);
+    return fail(res, 500, 'Xodimni saqlashda xatolik.');
+  }
+});
+
+app.patch('/api/users', auth('admin'), async (req, res) => {
+  try {
+    const { username, active, role, name, password } = req.body || {};
+    if (!username?.trim()) return fail(res, 400, 'Foydalanuvchi tanlanmadi.');
+    if (active !== undefined) await toggleUserActive(username.trim(), Boolean(active));
+    if (role || name || password) {
+      await saveUser({
+        username: username.trim(),
+        name,
+        role,
+        password,
+        active: active !== undefined ? Boolean(active) : true,
+      });
+    }
+    return res.json({ success: true });
+  } catch (error) {
+    console.error(error);
+    return fail(res, 500, 'Xodimni yangilashda xatolik.');
+  }
+});
+
+app.delete('/api/users', auth('admin'), async (req, res) => {
+  try {
+    const username = String(req.query?.username || req.body?.username || '');
+    if (!username.trim()) return fail(res, 400, 'Foydalanuvchi tanlanmadi.');
+    if (username.toLowerCase() === 'mio') return fail(res, 400, 'Bosh adminni o‘chirib bo‘lmaydi.');
+    await deleteUser(username.trim());
+    return res.json({ success: true });
+  } catch (error) {
+    console.error(error);
+    return fail(res, 500, 'Xodimni o‘chirishda xatolik.');
   }
 });
 

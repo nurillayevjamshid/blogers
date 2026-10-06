@@ -14,7 +14,10 @@ export async function initDatabase() {
         username TEXT PRIMARY KEY,
         role TEXT NOT NULL,
         password_hash TEXT NOT NULL,
-        active INTEGER NOT NULL DEFAULT 1
+        active INTEGER NOT NULL DEFAULT 1,
+        name TEXT,
+        password TEXT,
+        created_at TEXT
       );`,
     },
     {
@@ -31,6 +34,9 @@ export async function initDatabase() {
         audience TEXT,
         notes TEXT,
         is_blacklisted INTEGER NOT NULL DEFAULT 0,
+        blacklist_reason TEXT,
+        price REAL DEFAULT 0,
+        payment_status TEXT DEFAULT 'pending',
         created_at TEXT NOT NULL,
         completed_at TEXT
       );`,
@@ -47,6 +53,9 @@ export async function initDatabase() {
         manager TEXT,
         time TEXT,
         notes TEXT,
+        price REAL DEFAULT 0,
+        payment_status TEXT DEFAULT 'pending',
+        blacklist_reason TEXT,
         created_at TEXT NOT NULL,
         completed_at TEXT,
         FOREIGN KEY (blogger_id) REFERENCES bloggers(id) ON DELETE CASCADE
@@ -56,7 +65,22 @@ export async function initDatabase() {
     { sql: `CREATE INDEX IF NOT EXISTS idx_history_blogger_id ON blogger_history(blogger_id);` },
   ]);
 
-  // 2. Boshlang'ich foydalanuvchilarni ko'chirish
+  // Ustunlar mavjud bo'lmasa xavfsiz qo'shish
+  for (const sql of [
+    'ALTER TABLE bloggers ADD COLUMN price REAL DEFAULT 0',
+    'ALTER TABLE bloggers ADD COLUMN payment_status TEXT DEFAULT "pending"',
+    'ALTER TABLE bloggers ADD COLUMN blacklist_reason TEXT',
+    'ALTER TABLE blogger_history ADD COLUMN price REAL DEFAULT 0',
+    'ALTER TABLE blogger_history ADD COLUMN payment_status TEXT DEFAULT "pending"',
+    'ALTER TABLE blogger_history ADD COLUMN blacklist_reason TEXT',
+    'ALTER TABLE users ADD COLUMN name TEXT',
+    'ALTER TABLE users ADD COLUMN password TEXT',
+    'ALTER TABLE users ADD COLUMN created_at TEXT'
+  ]) {
+    try { await executeQuery(sql); } catch {}
+  }
+
+  // 2. Boshlang'ich foydalanuvchilar
   try {
     const existingUsers = await executeQuery('SELECT count(*) as count FROM users');
     const userCount = Number(existingUsers[0]?.count || 0);
@@ -67,11 +91,18 @@ export async function initDatabase() {
         const usersData = JSON.parse(fs.readFileSync(usersFile, 'utf8'));
         if (Array.isArray(usersData)) {
           const userStatements = usersData.map((u) => ({
-            sql: `INSERT OR IGNORE INTO users (username, role, password_hash, active) VALUES (?, ?, ?, ?)`,
-            params: [u.username, u.role, u.password_hash, u.active !== false ? 1 : 0],
+            sql: `INSERT OR IGNORE INTO users (username, role, password_hash, active, name, password, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            params: [
+              u.username,
+              u.role,
+              u.password_hash || '',
+              u.active !== false ? 1 : 0,
+              u.username === 'jamshid' ? 'Jamshid' : u.username === 'nuriddin' ? 'Nuriddin' : u.username,
+              u.username === 'jamshid' ? 'jamshid123' : '12345',
+              new Date().toISOString()
+            ],
           }));
           await executeBatch(userStatements);
-          console.log(`[Turso] ${usersData.length} foydalanuvchi ko'chirildi.`);
         }
       }
     }
@@ -109,6 +140,9 @@ export async function getAllBloggers() {
       manager: h.manager || undefined,
       time: h.time || undefined,
       notes: h.notes || undefined,
+      price: Number(h.price || 0),
+      paymentStatus: h.payment_status || 'pending',
+      blacklistReason: h.blacklist_reason || undefined,
       createdAt: h.created_at,
       completedAt: h.completed_at || null,
     });
@@ -126,12 +160,13 @@ export async function getAllBloggers() {
       manager: b.manager || undefined,
       time: b.time || undefined,
       notes: b.notes || undefined,
+      price: Number(b.price || 0),
+      paymentStatus: b.payment_status || 'pending',
+      blacklistReason: b.blacklist_reason || undefined,
       createdAt: b.created_at,
       completedAt: b.completed_at || null,
     }];
 
-    // Agar blogerning hali bitmagan (pending) hamkorliklari bo'lsa,
-    // blogerning umumiy statusi 'pending' bo'ladi, aks holda 'completed'
     const fullHistory = list.length > 0 ? list : fallbackHistory;
     const hasPendingCollab = fullHistory.some((h) => h.status === 'pending');
     const effectiveStatus = hasPendingCollab ? 'pending' : 'completed';
@@ -149,6 +184,9 @@ export async function getAllBloggers() {
       audience: b.audience || undefined,
       notes: b.notes || undefined,
       isBlacklisted: Boolean(b.is_blacklisted),
+      blacklistReason: b.blacklist_reason || undefined,
+      price: Number(b.price || 0),
+      paymentStatus: b.payment_status || 'pending',
       createdAt: b.created_at,
       completedAt: b.completed_at || null,
       history: fullHistory,
@@ -173,6 +211,9 @@ export async function getBloggerById(id) {
     manager: h.manager || undefined,
     time: h.time || undefined,
     notes: h.notes || undefined,
+    price: Number(h.price || 0),
+    paymentStatus: h.payment_status || 'pending',
+    blacklistReason: h.blacklist_reason || undefined,
     createdAt: h.created_at,
     completedAt: h.completed_at || null,
   }));
@@ -187,6 +228,9 @@ export async function getBloggerById(id) {
     manager: b.manager || undefined,
     time: b.time || undefined,
     notes: b.notes || undefined,
+    price: Number(b.price || 0),
+    paymentStatus: b.payment_status || 'pending',
+    blacklistReason: b.blacklist_reason || undefined,
     createdAt: b.created_at,
     completedAt: b.completed_at || null,
   }];
@@ -206,6 +250,9 @@ export async function getBloggerById(id) {
     audience: b.audience || undefined,
     notes: b.notes || undefined,
     isBlacklisted: Boolean(b.is_blacklisted),
+    blacklistReason: b.blacklist_reason || undefined,
+    price: Number(b.price || 0),
+    paymentStatus: b.payment_status || 'pending',
     createdAt: b.created_at,
     completedAt: b.completed_at || null,
     history: fullHistory,
@@ -214,23 +261,23 @@ export async function getBloggerById(id) {
 
 export async function findBloggerByNickname(nickname) {
   await initDatabase();
-  const norm = normalizeNickname(nickname).toLowerCase();
-  const rows = await executeQuery('SELECT id FROM bloggers WHERE lower(nickname) = ?', [norm]);
+  const normalized = normalizeNickname(nickname);
+  const rows = await executeQuery('SELECT id FROM bloggers WHERE lower(nickname) = lower(?)', [normalized]);
   if (!rows.length) return null;
   return getBloggerById(rows[0].id);
 }
 
 export async function saveOrUpdateBloggerRecord(blogger) {
   await initDatabase();
-  const norm = normalizeNickname(blogger.nickname);
 
   const statements = [
     {
       sql: `
         INSERT INTO bloggers (
           id, nickname, date, collaboration_type, brand, status,
-          category, manager, time, audience, notes, is_blacklisted, created_at, completed_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          category, manager, time, audience, notes, is_blacklisted, blacklist_reason,
+          price, payment_status, created_at, completed_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(id) DO UPDATE SET
           nickname = excluded.nickname,
           date = excluded.date,
@@ -243,11 +290,14 @@ export async function saveOrUpdateBloggerRecord(blogger) {
           audience = excluded.audience,
           notes = excluded.notes,
           is_blacklisted = excluded.is_blacklisted,
+          blacklist_reason = excluded.blacklist_reason,
+          price = excluded.price,
+          payment_status = excluded.payment_status,
           completed_at = excluded.completed_at
       `,
       params: [
         blogger.id,
-        norm,
+        normalizeNickname(blogger.nickname),
         blogger.date,
         blogger.collaborationType || blogger.collaboration_type || 'barter',
         blogger.brand || 'mio_beauty',
@@ -258,6 +308,9 @@ export async function saveOrUpdateBloggerRecord(blogger) {
         blogger.audience || null,
         blogger.notes || null,
         blogger.isBlacklisted ? 1 : 0,
+        blogger.blacklistReason || null,
+        Number(blogger.price || 0),
+        blogger.paymentStatus || 'pending',
         blogger.createdAt || blogger.created_at || new Date().toISOString(),
         blogger.completedAt || blogger.completed_at || null,
       ],
@@ -270,8 +323,9 @@ export async function saveOrUpdateBloggerRecord(blogger) {
         sql: `
           INSERT INTO blogger_history (
             id, blogger_id, date, collaboration_type, brand, status,
-            category, manager, time, notes, created_at, completed_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            category, manager, time, notes, price, payment_status, blacklist_reason,
+            created_at, completed_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           ON CONFLICT(id) DO UPDATE SET
             date = excluded.date,
             collaboration_type = excluded.collaboration_type,
@@ -281,6 +335,9 @@ export async function saveOrUpdateBloggerRecord(blogger) {
             manager = excluded.manager,
             time = excluded.time,
             notes = excluded.notes,
+            price = excluded.price,
+            payment_status = excluded.payment_status,
+            blacklist_reason = excluded.blacklist_reason,
             completed_at = excluded.completed_at
         `,
         params: [
@@ -294,6 +351,9 @@ export async function saveOrUpdateBloggerRecord(blogger) {
           h.manager || null,
           h.time || null,
           h.notes || null,
+          Number(h.price || 0),
+          h.paymentStatus || 'pending',
+          h.blacklistReason || null,
           h.createdAt || h.created_at || new Date().toISOString(),
           h.completedAt || h.completed_at || null,
         ],
@@ -316,7 +376,6 @@ export async function completeBlogger(id, historyId = null) {
   await initDatabase();
   const now = new Date().toISOString();
 
-  // Agar aniq bitta hamkorlik (historyId) yakunlanayotgan bo'lsa
   if (historyId) {
     await executeBatch([
       {
@@ -325,14 +384,12 @@ export async function completeBlogger(id, historyId = null) {
       },
     ]);
 
-    // Blogerning qolgan barcha hamkorliklarini tekshiramiz
     const pendingList = await executeQuery(
       'SELECT count(*) as count FROM blogger_history WHERE blogger_id = ? AND status = ?',
       [id, 'pending']
     );
     const pendingCount = Number(pendingList[0]?.count || 0);
 
-    // Agar boshqa pending hamkorlik qolmagan bo'lsa, blogger ham completed bo'ladi
     if (pendingCount === 0) {
       await executeBatch([
         { sql: 'UPDATE bloggers SET status = ?, completed_at = ? WHERE id = ?', params: ['completed', now, id] },
@@ -341,7 +398,6 @@ export async function completeBlogger(id, historyId = null) {
     return getBloggerById(id);
   }
 
-  // Agar umumiy blogger yakunlansa
   await executeBatch([
     { sql: 'UPDATE bloggers SET status = ?, completed_at = ? WHERE id = ?', params: ['completed', now, id] },
     { sql: 'UPDATE blogger_history SET status = ?, completed_at = ? WHERE blogger_id = ? AND status = ?', params: ['completed', now, id, 'pending'] },
@@ -349,15 +405,63 @@ export async function completeBlogger(id, historyId = null) {
   return getBloggerById(id);
 }
 
+// User / Manager boshqaruvi
+export async function getAllUsers() {
+  await initDatabase();
+  const rows = await executeQuery('SELECT username, role, active, name, password, created_at FROM users ORDER BY created_at DESC, username ASC');
+  return rows.map((r) => ({
+    username: r.username,
+    role: r.role,
+    active: Boolean(r.active),
+    name: r.name || r.username,
+    password: r.password || '',
+    createdAt: r.created_at || null,
+  }));
+}
+
+export async function saveUser({ username, name, role, password, active = true }) {
+  await initDatabase();
+  const cleanUsername = String(username || '').trim().toLowerCase();
+  const cleanRole = ['admin', 'manager', 'viewer'].includes(role) ? role : 'manager';
+  const cleanName = String(name || cleanUsername).trim();
+  const cleanPass = String(password || '').trim();
+  const now = new Date().toISOString();
+
+  await executeQuery(
+    `INSERT INTO users (username, role, password_hash, active, name, password, created_at)
+     VALUES (?, ?, '', ?, ?, ?, ?)
+     ON CONFLICT(username) DO UPDATE SET
+       role = excluded.role,
+       active = excluded.active,
+       name = excluded.name,
+       password = CASE WHEN excluded.password != '' THEN excluded.password ELSE users.password END`,
+    [cleanUsername, cleanRole, active ? 1 : 0, cleanName, cleanPass, now]
+  );
+
+  return { username: cleanUsername, role: cleanRole, name: cleanName, active: Boolean(active) };
+}
+
+export async function toggleUserActive(username, active) {
+  await initDatabase();
+  await executeQuery('UPDATE users SET active = ? WHERE lower(username) = lower(?)', [active ? 1 : 0, String(username).toLowerCase()]);
+}
+
+export async function deleteUser(username) {
+  await initDatabase();
+  await executeQuery('DELETE FROM users WHERE lower(username) = lower(?)', [String(username).toLowerCase()]);
+}
+
 export async function findUser(username) {
   await initDatabase();
-  const rows = await executeQuery('SELECT * FROM users WHERE lower(username) = ? AND active = 1', [String(username).toLowerCase()]);
+  const rows = await executeQuery('SELECT * FROM users WHERE lower(username) = ?', [String(username).toLowerCase()]);
   if (!rows.length) return null;
   const row = rows[0];
   return {
     username: row.username,
     role: row.role,
-    password_hash: row.password_hash,
+    name: row.name || row.username,
+    password: row.password || '',
+    password_hash: row.password_hash || '',
     active: Boolean(row.active),
   };
 }

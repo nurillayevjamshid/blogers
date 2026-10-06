@@ -25,7 +25,8 @@ import {
   guestLoginApi,
   loginApi,
 } from './api';
-import { Blogger, BrandType, CollaborationType, Session, CollaborationHistoryItem } from './types';
+import { Blogger, BrandType, CollaborationType, Session, CollaborationHistoryItem, PaymentStatus } from './types';
+import AdminPanel from './AdminPanel';
 import mioHomeLogo from './assets/mio-home-logo.png';
 import mioBeautyLogo from './assets/mio-beauty-logo.png';
 
@@ -82,6 +83,7 @@ export interface WorkingItem {
 export default function App() {
   // Har doim mini app ochilganda login parol so'ralishi uchun session xotiradan avtomatik olinmaydi
   const [session, setSession] = useState<Session | null>(null);
+  const [currentView, setCurrentView] = useState<'dashboard' | 'admin'>('dashboard');
   const [bloggers, setBloggers] = useState<Blogger[]>([]);
   const [tab, setTab] = useState<Tab>('directory');
   const [period, setPeriod] = useState<Period>('all');
@@ -209,6 +211,17 @@ export default function App() {
     return <Login onLogin={(s) => setSession(s)} />;
   }
 
+  if (currentView === 'admin') {
+    return (
+      <AdminPanel
+        session={session}
+        bloggers={bloggers}
+        onBack={() => setCurrentView('dashboard')}
+        onRefreshBloggers={load}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#f7f8fc] text-slate-900">
       <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/90 backdrop-blur">
@@ -222,14 +235,27 @@ export default function App() {
           </div>
           <div className="flex items-center gap-3">
             <div className="hidden text-right sm:block">
-              <p className="text-xs font-black">{session.username}</p>
+              <p className="text-xs font-black">{session.name || session.username}</p>
               <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                {session.role === 'admin' ? 'General admin' : 'Viewer'}
+                {session.role === 'admin' ? 'General admin' : 'Menejer'}
               </p>
             </div>
-            <div className="avatar">
+            <button
+              onClick={() => setCurrentView('admin')}
+              className="hidden sm:inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-black text-slate-700 shadow-sm hover:bg-slate-50 hover:border-slate-300 transition"
+              title="Admin panel"
+            >
+              <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
+              <span>Admin Panel</span>
+            </button>
+            <button
+              onClick={() => setCurrentView('admin')}
+              className="avatar group relative cursor-pointer border-2 border-transparent hover:border-emerald-500 hover:scale-105 transition"
+              title="Admin panelga o‘tish (Bosing)"
+            >
               <UserRound className="h-4 w-4" />
-            </div>
+              <span className="absolute -bottom-0.5 -right-0.5 flex h-2.5 w-2.5 items-center justify-center rounded-full bg-emerald-500 ring-2 ring-white" />
+            </button>
             <button
               onClick={handleLogout}
               className="icon-button"
@@ -570,6 +596,8 @@ function EditModal({
       collaborationType: CollaborationType;
       brand: BrandType;
       manager?: string;
+      price?: number;
+      paymentStatus?: PaymentStatus;
     }
   ) => Promise<void>;
 }) {
@@ -578,6 +606,8 @@ function EditModal({
   const [d, setD] = useState(formatDdMmYyyy(blogger.date));
   const [brand, setBrand] = useState<BrandType>(blogger.brand);
   const [type, setType] = useState<CollaborationType>(blogger.collaborationType);
+  const [price, setPrice] = useState(blogger.price ? String(blogger.price) : '');
+  const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>(blogger.paymentStatus || 'pending');
   const [m, setM] = useState(blogger.manager || '');
   const [e, setE] = useState('');
   const [busy, setBusy] = useState(false);
@@ -597,6 +627,8 @@ function EditModal({
         brand,
         collaborationType: type,
         manager: m,
+        price: type === 'paid' ? Number(price || 0) : 0,
+        paymentStatus: type === 'paid' ? paymentStatus : 'paid',
       });
     } catch (err: any) {
       setE(err.message || 'Tahrirlashda xatolik yuz berdi.');
@@ -638,6 +670,32 @@ function EditModal({
             </select>
           </label>
         </div>
+        {type === 'paid' && (
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className="field-label">
+              Kelishilgan narx (so‘m)
+              <input
+                type="number"
+                className="control mt-2"
+                value={price}
+                onChange={(x: any) => setPrice(x.target.value)}
+                placeholder="Masalan: 1500000"
+              />
+            </label>
+            <label className="field-label">
+              To‘lov holati
+              <select
+                className="control mt-2"
+                value={paymentStatus}
+                onChange={(x: any) => setPaymentStatus(x.target.value as any)}
+              >
+                <option value="pending">🟡 To‘lov kutilmoqda</option>
+                <option value="advance">🔵 Avans berildi</option>
+                <option value="paid">🟢 To‘landi</option>
+              </select>
+            </label>
+          </div>
+        )}
         <label className="field-label">
           Mas’ul shaxs
           <input
@@ -836,6 +894,8 @@ function AddModal({ onClose, onSubmit, existing }: any) {
   const [d, setD] = useState(formatDdMmYyyy(new Date().toISOString().slice(0, 10)));
   const [brand, setBrand] = useState<BrandType>('mio_beauty');
   const [type, setType] = useState<CollaborationType>('barter');
+  const [price, setPrice] = useState('');
+  const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>('pending');
   const [m, setM] = useState('');
   const [nm, setNm] = useState('');
   const [e, setE] = useState('');
@@ -858,6 +918,8 @@ function AddModal({ onClose, onSubmit, existing }: any) {
         brand,
         collaborationType: type,
         manager: m || nm,
+        price: type === 'paid' ? Number(price || 0) : 0,
+        paymentStatus: type === 'paid' ? paymentStatus : 'paid',
       });
     } catch (err: any) {
       setE(err.message);
@@ -902,6 +964,32 @@ function AddModal({ onClose, onSubmit, existing }: any) {
             </select>
           </label>
         </div>
+        {type === 'paid' && (
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className="field-label">
+              Kelishilgan narx (so‘m)
+              <input
+                type="number"
+                className="control mt-2"
+                value={price}
+                onChange={(x: any) => setPrice(x.target.value)}
+                placeholder="Masalan: 1500000"
+              />
+            </label>
+            <label className="field-label">
+              To‘lov holati
+              <select
+                className="control mt-2"
+                value={paymentStatus}
+                onChange={(x: any) => setPaymentStatus(x.target.value as any)}
+              >
+                <option value="pending">🟡 To‘lov kutilmoqda</option>
+                <option value="advance">🔵 Avans berildi</option>
+                <option value="paid">🟢 To‘landi</option>
+              </select>
+            </label>
+          </div>
+        )}
         <label className="field-label">
           Mas’ul shaxs
           <select className="control mt-2" value={m} onChange={(x: any) => setM(x.target.value)}>
