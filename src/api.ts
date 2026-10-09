@@ -87,23 +87,45 @@ export async function updateBloggerApi(
   id: string,
   data: Partial<Blogger> & { historyId?: string }
 ) {
-  const r = await fetch(`/api/bloggers/${id}`, {
-    method: 'PATCH',
-    headers: headers(),
-    body: JSON.stringify(data),
-  });
-  const j = await r.json();
-  return { success: r.ok, error: j.error as string | undefined, data: j.data as Blogger | undefined };
+  try {
+    let r = await fetch(`/api/bloggers/${id}`, {
+      method: 'PATCH',
+      headers: headers(),
+      body: JSON.stringify(data),
+    });
+    if (r.status === 404 || r.status === 405) {
+      r = await fetch(`/api/bloggers?id=${encodeURIComponent(id)}`, {
+        method: 'PATCH',
+        headers: headers(),
+        body: JSON.stringify(data),
+      });
+    }
+    const j = await r.json().catch(() => ({}));
+    return { success: r.ok, error: j.error as string | undefined, data: j.data as Blogger | undefined };
+  } catch {
+    return { success: false, error: 'Server bilan bog‘lanib bo‘lmadi.' };
+  }
 }
 
 export async function updateBlacklistApi(id: string, isBlacklisted: boolean, blacklistReason?: string) {
-  const r = await fetch(`/api/bloggers/${id}`, {
-    method: 'PATCH',
-    headers: headers(),
-    body: JSON.stringify({ isBlacklisted, blacklistReason }),
-  });
-  const j = await r.json();
-  return { success: r.ok, error: j.error, data: j.data };
+  try {
+    let r = await fetch(`/api/bloggers/${id}`, {
+      method: 'PATCH',
+      headers: headers(),
+      body: JSON.stringify({ isBlacklisted, blacklistReason }),
+    });
+    if (r.status === 404 || r.status === 405) {
+      r = await fetch(`/api/bloggers?id=${encodeURIComponent(id)}`, {
+        method: 'PATCH',
+        headers: headers(),
+        body: JSON.stringify({ isBlacklisted, blacklistReason }),
+      });
+    }
+    const j = await r.json().catch(() => ({}));
+    return { success: r.ok, error: j.error as string | undefined, data: j.data as Blogger | undefined };
+  } catch {
+    return { success: false, error: 'Server bilan bog‘lanib bo‘lmadi.' };
+  }
 }
 
 export async function deleteBloggerApi(id: string) {

@@ -216,42 +216,92 @@ app.post('/api/bloggers', auth('admin'), async (req, res) => {
 
 app.patch('/api/bloggers/:id', auth('admin'), async (req, res) => {
   try {
-    const { nickname, date, collaborationType, brand, manager, category, time, audience, notes, isBlacklisted } = req.body || {};
-    if (!nickname?.trim()) return fail(res, 400, "Bloger nickname'ini kiriting.");
-    if (!date) return fail(res, 400, 'Sanani tanlang.');
-
     const blogger = await getBloggerById(req.params.id);
     if (!blogger) return fail(res, 404, 'Bloger topilmadi.');
 
-    const normalized = normalizeNickname(nickname);
-    const existingWithSameName = await findBloggerByNickname(normalized);
-    if (existingWithSameName && existingWithSameName.id !== blogger.id) {
-      return fail(res, 409, 'Bu nickname allaqachon mavjud.');
+    const {
+      nickname,
+      date,
+      collaborationType,
+      brand,
+      manager,
+      category,
+      time,
+      audience,
+      notes,
+      isBlacklisted,
+      blacklistReason,
+      price,
+      paymentStatus,
+      historyId,
+    } = req.body || {};
+
+    // 1. Blacklist toggle
+    if (isBlacklisted !== undefined && !nickname && !date) {
+      blogger.isBlacklisted = Boolean(isBlacklisted);
+      blogger.blacklistReason = isBlacklisted ? (blacklistReason?.trim() || 'Sabab ko‘rsatilmadi') : null;
+      await saveOrUpdateBloggerRecord(blogger);
+      return res.json({ success: true, data: blogger });
     }
 
-    const type: CollaborationType = ['barter', 'paid'].includes(collaborationType) ? collaborationType : 'barter';
-    const selectedBrand: Brand = ['mio_beauty', 'mio_home'].includes(brand) ? brand : 'mio_beauty';
+    // 2. Specific history item update
+    if (historyId && Array.isArray(blogger.history)) {
+      const item = blogger.history.find((h: any) => h.id === historyId);
+      if (item) {
+        if (price !== undefined) item.price = Number(price);
+        if (paymentStatus !== undefined) item.paymentStatus = paymentStatus;
+        if (manager !== undefined) item.manager = manager?.trim() || undefined;
+        if (date !== undefined) item.date = date;
+        if (brand !== undefined) item.brand = brand;
+        if (collaborationType !== undefined) item.collaborationType = collaborationType;
 
-    blogger.nickname = normalized;
-    blogger.date = date;
-    blogger.collaborationType = type;
-    blogger.brand = selectedBrand;
+        if (blogger.history[0]?.id === historyId) {
+          if (price !== undefined) blogger.price = Number(price);
+          if (paymentStatus !== undefined) blogger.paymentStatus = paymentStatus;
+        }
+        await saveOrUpdateBloggerRecord(blogger);
+        return res.json({ success: true, data: blogger });
+      }
+    }
+
+    // 3. Full update
+    if (nickname) {
+      const normalized = normalizeNickname(nickname);
+      const existingWithSameName = await findBloggerByNickname(normalized);
+      if (existingWithSameName && existingWithSameName.id !== blogger.id) {
+        return fail(res, 409, 'Bu nickname allaqachon mavjud.');
+      }
+      blogger.nickname = normalized;
+    }
+
+    if (date) blogger.date = date;
+    if (collaborationType) {
+      blogger.collaborationType = ['barter', 'paid'].includes(collaborationType) ? collaborationType : 'barter';
+    }
+    if (brand) {
+      blogger.brand = ['mio_beauty', 'mio_home'].includes(brand) ? brand : 'mio_beauty';
+    }
     if (category !== undefined) blogger.category = category || undefined;
     if (manager !== undefined) blogger.manager = manager?.trim() || undefined;
     if (time !== undefined) blogger.time = time || undefined;
     if (audience !== undefined) blogger.audience = audience || undefined;
     if (notes !== undefined) blogger.notes = notes || undefined;
     if (isBlacklisted !== undefined) blogger.isBlacklisted = Boolean(isBlacklisted);
+    if (blacklistReason !== undefined) blogger.blacklistReason = blacklistReason || undefined;
+    if (price !== undefined) blogger.price = Number(price);
+    if (paymentStatus !== undefined) blogger.paymentStatus = paymentStatus;
 
     if (blogger.history?.length) {
       Object.assign(blogger.history[0], {
-        date,
-        collaborationType: type,
-        brand: selectedBrand,
+        date: blogger.date,
+        collaborationType: blogger.collaborationType,
+        brand: blogger.brand,
         category: blogger.category,
         manager: blogger.manager,
         time: blogger.time,
         notes: blogger.notes,
+        price: blogger.price,
+        paymentStatus: blogger.paymentStatus,
       });
     }
 
