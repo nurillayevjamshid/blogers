@@ -14,6 +14,9 @@ import {
   X,
   Calendar,
   LogOut,
+  AlertTriangle,
+  Users,
+  Clock,
 } from 'lucide-react';
 import {
   addBloggerApi,
@@ -242,15 +245,15 @@ export default function App() {
             </div>
             <button
               onClick={() => setCurrentView('admin')}
-              className="hidden sm:inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-black text-slate-700 shadow-sm hover:bg-slate-50 hover:border-slate-300 transition"
+              className="admin-panel-btn hidden sm:inline-flex"
               title="Admin panel"
             >
-              <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
+              <ShieldCheck className="h-4 w-4 text-emerald-400" />
               <span>Admin Panel</span>
             </button>
             <button
               onClick={() => setCurrentView('admin')}
-              className="avatar group relative cursor-pointer border-2 border-transparent hover:border-emerald-500 hover:scale-105 transition"
+              className="avatar-btn"
               title="Admin panelga o‘tish (Bosing)"
             >
               <UserRound className="h-4 w-4" />
@@ -258,53 +261,61 @@ export default function App() {
             </button>
             <button
               onClick={handleLogout}
-              className="icon-button"
+              className="logout-btn"
               title="Tizimdan chiqish"
             >
-              <LogOut className="h-4 w-4 text-slate-500" />
+              <LogOut className="h-4 w-4" />
             </button>
           </div>
         </div>
       </header>
 
-      <main className="mx-auto max-w-7xl px-4 py-6 sm:px-8 sm:py-10">
+      <main className="mx-auto max-w-7xl px-4 py-6 sm:px-8 sm:py-8">
         <div className="mb-7 flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
           <div>
             <p className="eyebrow">MIO work desk</p>
-            <h1 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">Blogerlar hamkorligi</h1>
-            <p className="mt-2 max-w-xl text-sm text-slate-500">
+            <h1 className="mt-2 text-3xl font-black tracking-tight text-slate-900 sm:text-4xl">Blogerlar hamkorligi</h1>
+            <p className="mt-2 max-w-xl text-sm font-medium text-slate-500">
               Blogerlarni yagona nickname orqali kuzating, Instagram profiliga bir bosishda o‘ting va reklama holatini
               nazorat qiling.
             </p>
           </div>
           <div className="stats-row">
-            <Stat label="Jami bloger" value={bloggers.length} />
-            <Stat label="Ishlanmoqda" value={workingItems.length} />
-            <Stat label="Ogohlantirish" value={overdue.length} danger={overdue.length > 0} />
+            <Stat label="Jami bloger" value={bloggers.length} type="default" />
+            <Stat label="Ishlanmoqda" value={workingItems.length} type="active" />
+            <Stat label="Ogohlantirish" value={overdue.length} type={overdue.length > 0 ? 'danger' : 'default'} />
           </div>
         </div>
 
-        <div className="tabs">
-          <button onClick={() => setTab('directory')} className={tab === 'directory' ? 'tab active' : 'tab'}>
-            Blogerlar ro‘yxati <span>{bloggers.length}</span>
+        <div className="tabs-container">
+          <button
+            onClick={() => setTab('directory')}
+            className={`tab-pill ${tab === 'directory' ? 'active' : ''}`}
+          >
+            <span>Blogerlar ro‘yxati</span>
+            <span className="tab-badge">{bloggers.length}</span>
           </button>
-          <button onClick={() => setTab('working')} className={tab === 'working' ? 'tab active' : 'tab'}>
-            Ishlanayotgan blogerlar <span>{workingItems.length}</span>
+          <button
+            onClick={() => setTab('working')}
+            className={`tab-pill ${tab === 'working' ? 'active' : ''}`}
+          >
+            <span>Ishlanayotgan blogerlar</span>
+            <span className="tab-badge amber">{workingItems.length}</span>
           </button>
         </div>
 
-        <section className="mt-5 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+        <section className="search-section">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div className="relative flex-1">
-              <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <Search className="search-icon" />
               <input
                 value={query}
                 onChange={(e: any) => setQuery(e.target.value)}
-                className="control pl-10"
+                className="search-input"
                 placeholder="Nickname yoki mas’ul shaxs bo‘yicha qidiring..."
               />
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               {tab === 'directory' && (
                 <>
                   <Select
@@ -330,18 +341,18 @@ export default function App() {
               )}
               {tab === 'working' && (
                 <>
-                  <button onClick={() => setNotifyOpen(true)} className="outline-button relative">
+                  <button onClick={() => setNotifyOpen(true)} className="notice-button relative">
                     <Bell className="h-4 w-4" />
-                    Bildirishnoma
-                    {overdue.length > 0 && <b className="notification-dot">{overdue.length}</b>}
+                    <span>Bildirishnoma</span>
+                    {overdue.length > 0 && <span className="notification-dot">{overdue.length}</span>}
                   </button>
                   <button
                     onClick={() => setAddOpen(true)}
                     disabled={session.role !== 'admin'}
-                    className="primary-button"
+                    className="add-blogger-btn"
                   >
                     <Plus className="h-4 w-4" />
-                    Bloger qo‘shish
+                    <span>Bloger qo‘shish</span>
                   </button>
                 </>
               )}
@@ -391,12 +402,35 @@ export default function App() {
   );
 }
 
-const Stat = ({ label, value, danger }: { label: string; value: number; danger?: boolean }) => (
-  <div className="stat">
-    <span>{label}</span>
-    <b className={danger ? 'text-rose-500' : ''}>{value}</b>
-  </div>
-);
+const Stat = ({
+  label,
+  value,
+  type = 'default',
+}: {
+  label: string;
+  value: number;
+  type?: 'default' | 'active' | 'danger';
+}) => {
+  const isDanger = type === 'danger';
+  const isActive = type === 'active';
+  return (
+    <div className={`stat ${isDanger ? 'stat-danger' : isActive ? 'stat-active' : 'stat-default'}`}>
+      <div className="stat-header">
+        <span className="stat-label">{label}</span>
+        {isDanger ? (
+          <div className="stat-icon-wrap danger"><AlertTriangle className="h-3.5 w-3.5" /></div>
+        ) : isActive ? (
+          <div className="stat-icon-wrap active"><Clock className="h-3.5 w-3.5" /></div>
+        ) : (
+          <div className="stat-icon-wrap default"><Users className="h-3.5 w-3.5" /></div>
+        )}
+      </div>
+      <b className={`stat-value ${isDanger ? 'text-rose-600' : isActive ? 'text-amber-800' : 'text-slate-900'}`}>
+        {value}
+      </b>
+    </div>
+  );
+};
 
 const Select = ({ value, onChange, options }: any) => (
   <label className="select-wrap">
@@ -489,18 +523,18 @@ function Directory({
       <div className="directory-cards">
         {rows.map((b) => (
           <button key={b.id} className="blogger-card" onClick={() => onOpen(b)}>
-            <div className="flex min-w-0 items-center justify-between gap-3">
-              <div className="min-w-0 text-left">
-                <strong className="block truncate">{b.nickname}</strong>
-                <span className="mt-1 block text-xs text-slate-400">
-                  {b.history?.length || 1} marta ishlangan · Batafsil ko‘rish
-                </span>
-              </div>
-              <span className="text-slate-400">›</span>
+            <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-3">
+              <strong className="text-base text-slate-900">{b.nickname}</strong>
+              <span className="history-count">
+                <b>{b.history?.length || 1}</b> marta ishlangan
+              </span>
             </div>
-            <div className="mt-3 flex items-center gap-2">
-              <Badge type={b.collaborationType} />
-              <BrandBadge brand={b.brand} />
+            <div className="mt-3 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Badge type={b.collaborationType} />
+                <BrandBadge brand={b.brand} />
+              </div>
+              <span className="text-xs font-extrabold text-slate-400 hover:text-slate-700">Batafsil ›</span>
             </div>
           </button>
         ))}
@@ -786,37 +820,44 @@ function Working({
       <div className="working-cards">
         {rows.map((b) => (
           <div key={b.historyId} className="blogger-card">
-            <div className="flex min-w-0 items-start justify-between gap-3">
-              <div className="min-w-0 text-left">
+            <div className="flex items-start justify-between gap-3 border-b border-slate-100 pb-3">
+              <div>
                 <a
                   className="nickname-link"
                   href={instagramUrl(b.nickname)}
                   target="_blank"
                   rel="noreferrer"
                 >
-                  <strong className="truncate">{b.nickname}</strong>
-                  <ExternalLink className="h-3.5 w-3.5" />
+                  <strong className="text-base text-slate-900">{b.nickname}</strong>
+                  <ExternalLink className="h-3.5 w-3.5 text-slate-400" />
                 </a>
-                <span className="mt-1 block text-xs text-slate-500">
-                  Yuborilgan: <b>{formatDdMmYyyy(b.date)}</b>
-                </span>
                 <span className="mt-0.5 block text-xs text-slate-400">
-                  Mas’ul: {b.manager || 'Belgilanmagan'}
+                  Instagram profilini ochish
                 </span>
+              </div>
+              <BrandBadge brand={b.brand} />
+            </div>
+
+            <div className="my-3 grid grid-cols-2 gap-2 text-xs">
+              <div className="rounded-xl bg-slate-50 p-2.5">
+                <span className="block text-[10px] font-bold uppercase text-slate-400">Sana</span>
+                <span className="font-extrabold text-slate-700">{formatDdMmYyyy(b.date)}</span>
+              </div>
+              <div className="rounded-xl bg-slate-50 p-2.5">
+                <span className="block text-[10px] font-bold uppercase text-slate-400">Mas’ul xodim</span>
+                <span className="font-extrabold text-slate-700">{b.manager || 'Belgilanmagan'}</span>
               </div>
             </div>
-            <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3">
-              <div className="flex items-center gap-2">
-                <Badge type={b.collaborationType} />
-                <BrandBadge brand={b.brand} />
-              </div>
+
+            <div className="flex items-center justify-between gap-3 border-t border-slate-100 pt-3">
+              <Badge type={b.collaborationType} />
               <button
                 disabled={!canEdit}
                 onClick={() => onComplete(b.id, b.historyId)}
-                className="complete-button"
+                className="complete-button flex-1"
               >
                 <Check className="h-4 w-4" />
-                Bajarildi
+                Bajarildi deb belgilash
               </button>
             </div>
           </div>
@@ -828,7 +869,9 @@ function Working({
 }
 
 const Badge = ({ type }: { type: CollaborationType }) => (
-  <span className={type === 'paid' ? 'badge paid' : 'badge barter'}>{typeLabel(type)}</span>
+  <span className={type === 'paid' ? 'badge paid' : 'badge barter'}>
+    {type === 'paid' ? '💰 Pulli' : '📦 Barter'}
+  </span>
 );
 
 const BrandBadge = ({ brand }: { brand: BrandType }) =>
